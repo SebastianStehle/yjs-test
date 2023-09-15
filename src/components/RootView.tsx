@@ -15,7 +15,7 @@ export const RootView = () => {
     return (
         <div className='lists'>
             {Object.entries(lists.raw).map(([key, value]) =>
-                <TaskListView taskList={value} key={key} />
+                <TaskListView list={value} listId={key} key={key} />
             )}
 
             <Card className='list-add'>
@@ -27,4 +27,4 @@ export const RootView = () => {
             </Card>
         </div>
     );
-}
+};

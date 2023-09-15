@@ -17,7 +17,7 @@ export const TypeProperties = {
 
     // To source value.
     source: '__source',
-}
+};
 
 export function isSameInstanceId(current: any, previous: any) {
     const currentId = current?.[TypeProperties.instanceId];

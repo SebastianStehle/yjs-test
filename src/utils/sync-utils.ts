@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import * as Y from 'yjs'
+import * as Y from 'yjs';
 import { TypeProperties } from './identity';
 import { ImmutableList } from './immutable-list';
 import { ImmutableMap } from './immutable-map';

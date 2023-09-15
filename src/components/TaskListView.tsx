@@ -5,19 +5,20 @@ import { TaskList } from './../state/state';
 import { TaskView } from './TaskView';
 
 type TaskListViewProps = {
-    taskList: TaskList;
-}
+    list: TaskList;
+    listId: string;
+};
 
 export const TaskListView = (props: TaskListViewProps) => {
-    const { taskList } = props;
+    const { list, listId } = props;
     const dispatch = useDispatch();
 
     const doAdd = () => {
-        dispatch(addTask({ listId: taskList.__instanceId }));
+        dispatch(addTask({ listId }));
     };
 
     const doDelete = () => {
-        dispatch(deleteList({ listId: taskList.__instanceId }));
+        dispatch(deleteList({ listId }));
     };
 
     return (
@@ -25,7 +26,7 @@ export const TaskListView = (props: TaskListViewProps) => {
             <CardHeader>
                 <Row className='align-items-center'>
                     <Col>
-                        {taskList.title || 'List'}
+                        {list.title || 'List'}
                     </Col>
                     <Col xs='auto'>
                         <Button color='success' size='sm' className='me-1' onClick={doAdd}>
@@ -39,10 +40,10 @@ export const TaskListView = (props: TaskListViewProps) => {
                 </Row>
             </CardHeader>
             <CardBody>
-                {Object.entries(taskList.tasks.raw).map(([key, value]) =>
-                    <TaskView taskItem={value} taskList={taskList} key={key} />
+                {Object.entries(list.tasks.raw).map(([key, value]) =>
+                    <TaskView task={value} taskId={key} list={list} listId={listId} key={key} />
                 )}
             </CardBody>
         </Card>
-    )
+    );
 };

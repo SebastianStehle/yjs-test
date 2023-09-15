@@ -177,7 +177,7 @@ function syncMap(current: ImmutableMap<any>, previous: ImmutableMap<any>, target
 
 function syncObject(current: ImmutableObject<any>, previous: ImmutableObject<any>, target: Y.Map<any>) {
     setSource(target, current);
-
+    
     for (const [key, valueNew] of current) {
         if (!previous.contains(key)) {
             // The item has been added.
@@ -206,6 +206,18 @@ function syncObject(current: ImmutableObject<any>, previous: ImmutableObject<any
     }
 }
 
-export function syncToY(current: ImmutableObject<any>, previous: ImmutableObject<any>, target: Y.Map<any>) {
-    syncObject(current, previous, target);
+function syncInitial(current: ImmutableObject<any>, target: Y.Map<any>) {
+    setSource(target, current);
+    
+    for (const [key, valueNew] of current) {
+        target.set(key, valueToY(valueNew));
+    }
+}
+
+export function syncToY(current: ImmutableObject<any>, previous: ImmutableObject<any> | null, target: Y.Map<any>) {
+    if (!previous) {
+        syncInitial(current, target);
+    } else {
+        syncObject(current, previous, target);
+    }
 }

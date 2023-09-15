@@ -5,26 +5,28 @@ import { deleteTask, setTaskTitle } from '../state/reducer';
 import { TaskItem, TaskList } from './../state/state';
 
 type TaskViewProps = {
-    taskList: TaskList;
-    taskItem: TaskItem;
-}
+    list: TaskList;
+    listId: string;
+    task: TaskItem;
+    taskId: string;
+};
 
 export const TaskView = (props: TaskViewProps) => {
-    const { taskItem, taskList } = props;
+    const { listId, task, taskId } = props;
     
     const dispatch = useDispatch();
-    const [editTitle, setEditTitle] = React.useState(taskList.title || '');
+    const [editTitle, setEditTitle] = React.useState(task.title || '');
 
     React.useEffect(() => {
-        setEditTitle(taskItem.title || '');
-    }, [taskItem.title]);
+        setEditTitle(task.title || '');
+    }, [task.title]);
 
     const doDelete = () => {
-        dispatch(deleteTask({ listId: taskList.__instanceId, taskId: taskItem.__instanceId }));
+        dispatch(deleteTask({ listId, taskId }));
     };
 
     const doSetTitle = () => {
-        dispatch(setTaskTitle({ listId: taskList.__instanceId, taskId: taskItem.__instanceId, title: editTitle }));
+        dispatch(setTaskTitle({ listId, taskId, title: editTitle }));
     };
 
     return (
@@ -48,4 +50,4 @@ export const TaskView = (props: TaskViewProps) => {
             </CardBody>
         </Card>
     );
-}
+};

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import * as Y from 'yjs'
+import * as Y from 'yjs';
 import { TypeProperties } from './identity';
 import { ImmutableList } from './immutable-list';
 import { ImmutableMap } from './immutable-map';
@@ -29,7 +29,7 @@ function syncValue(source: any, factories: Factories) {
         result = syncObject(source, factories);
     }
 
-    setTarget(result, getTarget(source))
+    setTarget(result, getTarget(source));
     return result;
 }
 
@@ -158,7 +158,7 @@ function syncObject(source: ImmutableObject<any>, factories: Factories) {
 
 export function syncFromY<T extends ImmutableObject<any>>(source: T, events: ReadonlyArray<Y.YEvent<any>>, factories: Factories) {
     for (const event of events) {
-        invalidate(event.target, event)
+        invalidate(event.target, event);
     }
 
     return syncObject(source, factories) as T;
@@ -179,7 +179,7 @@ function invalidate(target: Y.AbstractType<any> | null, event: Y.YEvent<any> | n
         setEvent(source, event);
     }
 
-    if (isInvalid(target)) {
+    if (isInvalid(source)) {
         return;
     }
     
