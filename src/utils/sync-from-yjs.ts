@@ -5,7 +5,7 @@ import { ImmutableList } from './immutable-list';
 import { ImmutableMap } from './immutable-map';
 import { ImmutableObject } from './immutable-object';
 import { ImmutableSet } from './immutable-set';
-import { createInstance, Factories, getEvent, getSource, isInvalid, setEvent, setInvalid } from './sync-utils';
+import { createInstance, Factories, getEvent, getSource, isInvalid, setEvent, setInvalid, setSource } from './sync-utils';
 
 function syncValue(source: any, factories: Factories) {
     if (!isInvalid(source)) {
@@ -153,6 +153,8 @@ function syncObject(source: ImmutableObject<any>, factories: Factories) {
 }
 
 export function syncFromY(source: ImmutableObject<any>, events: ReadonlyArray<Y.YEvent<any>>, factories: Factories) {
+    setSource(events[0].currentTarget, source);
+
     for (const event of events) {
         invalidate(event.target, event)
     }

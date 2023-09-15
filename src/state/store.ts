@@ -4,14 +4,14 @@ import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import { syncToY } from './../utils/sync-to-yjs';
 import { Root, TaskItem, TaskList } from './state';
-import tasksReducer, { initTasks } from './reducer';
+import tasksReducer from './reducer';
 import { initFromY, syncFromY } from '../utils/sync-from-yjs';
 import { Factories } from '../utils/sync-utils';
 
 const ydoc = new Y.Doc()
 const yroot = ydoc.getMap();
 
-const provider = new WebrtcProvider('demo-room2', ydoc);
+new WebrtcProvider('demo-room2', ydoc);
 
 const factories: Factories = {
     Root: values => {
@@ -30,23 +30,7 @@ const syncAction = createAction<Y.YEvent<any>[]>('SYNC_FROM_YJS');
 const initAction = createAction<Y.Map<any>>('INIT_FROM_YS');
 
 const syncMiddleware = () => {
-    let didConnect = false;
-
     const middleware: Middleware = store => {
-        provider.on('status', ({ status }: { status: 'connecting' | 'disconnected' | 'connected' }) => {
-            if (status !== 'connected' || didConnect) {
-                return;
-            }
-
-            didConnect = true;
-        });
-
-        if (yroot.size === 0) {
-            store.dispatch(initTasks());
-        } else {
-            store.dispatch(initAction(yroot));
-        }
-
         yroot.observeDeep((events, transition) => {
             if (transition.local) {
                 return;
@@ -54,6 +38,16 @@ const syncMiddleware = () => {
 
             store.dispatch(syncAction(events));
         });
+
+        ydoc.on('synced', () => {
+            console.log('Synced');
+        });
+        
+        yroot.observeDeep(() => {
+            console.log('yarray updated: ', yroot.toJSON())
+        });
+
+        syncToY(store.getState().tasks, new Root(), yroot);
 
         return next => action => {
             const stateOld = store.getState();

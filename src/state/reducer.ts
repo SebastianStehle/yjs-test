@@ -8,17 +8,6 @@ export const tasksSlice = createSlice({
     name: 'tasks',
     initialState,
     reducers: {
-        initTasks: () => {
-            return new Root()
-                .add(
-                    new TaskList()
-                        .add(new TaskItem().setTitle('Task1'))
-                        .add(new TaskItem().setTitle('Task2')))
-                .add(
-                    new TaskList()
-                        .add(new TaskItem().setTitle('Task3'))
-                        .add(new TaskItem().setTitle('Task4')));
-        },
         addList: (state) => {
             return state?.add(new TaskList());
         },
@@ -46,5 +35,5 @@ export const tasksSlice = createSlice({
     }
 });
 
-export const { addList, deleteList, addTask, deleteTask, initTasks, setTaskTitle, setTaskColor } = tasksSlice.actions
+export const { addList, deleteList, addTask, deleteTask, setTaskTitle, setTaskColor } = tasksSlice.actions
 export default tasksSlice.reducer;
