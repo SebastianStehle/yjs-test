@@ -6,7 +6,7 @@ import { ImmutableList } from './immutable-list';
 import { ImmutableMap } from './immutable-map';
 import { ImmutableObject } from './immutable-object';
 import { ImmutableSet } from './immutable-set';
-import { setSource } from './sync';
+import { setSource } from './sync-utils';
 import { Types } from './types';
 
 function valueToY(source: any) {

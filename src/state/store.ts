@@ -4,13 +4,14 @@ import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import { syncToY } from './../utils/sync-to-yjs';
 import { Root, TaskItem, TaskList } from './state';
-import tasksReducer from './reducer';
-import { Factories, syncFromY } from '../utils/sync-from-yjs';
+import tasksReducer, { initTasks } from './reducer';
+import { initFromY, syncFromY } from '../utils/sync-from-yjs';
+import { Factories } from '../utils/sync-utils';
 
 const ydoc = new Y.Doc()
 const yroot = ydoc.getMap();
 
-new WebrtcProvider('demo-room', ydoc);
+const provider = new WebrtcProvider('demo-room2', ydoc);
 
 const factories: Factories = {
     Root: values => {
@@ -26,13 +27,25 @@ const factories: Factories = {
 
 const syncAction = createAction<Y.YEvent<any>[]>('SYNC_FROM_YJS');
 
+const initAction = createAction<Y.Map<any>>('INIT_FROM_YS');
+
 const syncMiddleware = () => {
+    let didConnect = false;
+
     const middleware: Middleware = store => {
-        function sync() {        
-            syncToY(store.getState().tasks, new Root(), yroot);
+        provider.on('status', ({ status }: { status: 'connecting' | 'disconnected' | 'connected' }) => {
+            if (status !== 'connected' || didConnect) {
+                return;
+            }
+
+            didConnect = true;
+        });
+
+        if (yroot.size === 0) {
+            store.dispatch(initTasks());
+        } else {
+            store.dispatch(initAction(yroot));
         }
-        
-        sync();
 
         yroot.observeDeep((events, transition) => {
             if (transition.local) {
@@ -51,7 +64,14 @@ const syncMiddleware = () => {
                 return {
                     ...stateOld,
                     tasks: syncFromY(stateOld.tasks, action.payload, factories)
-                }
+                };
+            } else if (initAction.match(action)) {
+                const stateOld = store.getState();
+
+                return {
+                    ...stateOld,
+                    tasks: initFromY(action.payload, factories)
+                };
             }
 
             const result = next(action);

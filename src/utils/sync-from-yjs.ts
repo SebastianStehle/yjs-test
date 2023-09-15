@@ -5,59 +5,10 @@ import { ImmutableList } from './immutable-list';
 import { ImmutableMap } from './immutable-map';
 import { ImmutableObject } from './immutable-object';
 import { ImmutableSet } from './immutable-set';
-import { getSource, setSource } from './sync';
-import { Types } from './types';
-
-export const SpecialProperties = {
-    // To check which properties need to be tested.
-    invalid: '__invalid',
-
-    // The target event to apply.
-    event: '__event',
-}
-
-export type Factory = (value: any) => any;
-export type Factories = { [key: string]: Factory };
-
-function createInstance(source: any, factories: Factories) {
-    if (Types.is(source, Y.Map)) {
-        const values: Record<string, any> = {};
-
-        for (const [key, value] of source.entries()) {
-            values[key] = createInstance(value, factories);
-        }
-
-        const typeName = source.get(TypeProperties.typeName) as string;
-
-        if (!typeName) {
-            return values;
-        }
-
-        let result: any;
-        if (typeName === 'Map') {
-            result = ImmutableMap.of(values);
-        } else if (typeName === 'Set') {
-            result = ImmutableSet.of(...Object.keys(values));
-        } else {
-            result = factories[typeName](values);
-        }
-
-        setSource(source, result);
-        return result;
-    } else if (Types.is(source, Y.Array)) {
-        const values: any[] = source.map(i => createInstance(i, factories));
-
-        const result = ImmutableList.of(values);
-
-        setSource(source, result);
-        return result;
-    }
-
-    return source;
-}
+import { createInstance, Factories, getEvent, getSource, isInvalid, setEvent, setInvalid } from './sync-utils';
 
 function syncValue(source: any, factories: Factories) {
-    if (!(source as  any)[SpecialProperties.invalid]) {
+    if (!isInvalid(source)) {
         return source;
     }
 
@@ -89,46 +40,50 @@ function syncList(source: ImmutableList<any>, factories: Factories) {
             }
         }
 
-        const event = (source as  any)[SpecialProperties.event] as Y.YMapEvent<any>;
+        const event = getEvent(source);
 
-        if (event) {
-            const target = event.currentTarget as Y.Array<any>;
-        
-            event.changes.keys.forEach((change, id) => {
-                const index = parseInt(id, 10);
-
-                switch (change.action) {
-                    case 'add':
-                        mutator.insert(index, createInstance(target.get(index), factories));
-                        break;
-                    case 'update':
-                        mutator.set(index, createInstance(target.get(index), factories));
-                        break;
-                    case 'delete':
-                        mutator.removeAt(index);
-                        break;
-                }
-            });
+        if (!event) {
+            return;
         }
+
+        const target = event.currentTarget as Y.Array<any>;
+    
+        event.changes.keys.forEach((change, id) => {
+            const index = parseInt(id, 10);
+
+            switch (change.action) {
+                case 'add':
+                    mutator.insert(index, createInstance(target.get(index), factories));
+                    break;
+                case 'update':
+                    mutator.set(index, createInstance(target.get(index), factories));
+                    break;
+                case 'delete':
+                    mutator.removeAt(index);
+                    break;
+            }
+        });
     });
 }
 
 function syncSet(source: ImmutableSet) {
-    return source.mutate(mutator => {    
-        const event = (source as  any)[SpecialProperties.event] as Y.YEvent<any>;
+    return source.mutate(mutator => {
+        const event = getEvent(source);
     
-        if (event) {    
-            event.changes.keys.forEach((change, id) => {
-                switch (change.action) {
-                    case 'add':
-                    case 'update':
-                        mutator.add(id);
-                        break;
-                    case 'delete':
-                        mutator.remove(id);
-                }
-            });
+        if (!event) {
+            return;
         }
+
+        event.changes.keys.forEach((change, id) => {
+            switch (change.action) {
+                case 'add':
+                case 'update':
+                    mutator.add(id);
+                    break;
+                case 'delete':
+                    mutator.remove(id);
+            }
+        });
     });
 }
 
@@ -141,23 +96,25 @@ function syncMap(source: ImmutableMap<any>, factories: Factories) {
                 mutator.set(key, valueNew);
             }
         }
+        
+        const event = getEvent(source);
     
-        const event = (source as  any)[SpecialProperties.event] as Y.YEvent<any>;
-    
-        if (event) {
-            const target = event.currentTarget as Y.Map<any>;
-    
-            event.changes.keys.forEach((change, id) => {
-                switch (change.action) {
-                    case 'add':
-                    case 'update':
-                        mutator.set(id, createInstance(target.get(id), factories));
-                        break;
-                    case 'delete':
-                        mutator.remove(id);
-                }
-            });
+        if (!event) {
+            return;
         }
+    
+        const target = event.currentTarget as Y.Map<any>;
+
+        event.changes.keys.forEach((change, id) => {
+            switch (change.action) {
+                case 'add':
+                case 'update':
+                    mutator.set(id, createInstance(target.get(id), factories));
+                    break;
+                case 'delete':
+                    mutator.remove(id);
+            }
+        });
     });
 }
 
@@ -173,7 +130,7 @@ function syncObject(source: ImmutableObject<any>, factories: Factories) {
         }
     }
 
-    const event = (source as  any)[SpecialProperties.event] as Y.YEvent<any>;
+    const event = getEvent(source);
 
     if (event) {
         const target = event.currentTarget as Y.Map<any>;
@@ -203,19 +160,27 @@ export function syncFromY(source: ImmutableObject<any>, events: ReadonlyArray<Y.
     return syncObject(source, factories);
 }
 
+export function initFromY<T>(source: Y.Map<any>, factories: Factories) {
+    return createInstance(source, factories) as T;
+}
+
 function invalidate(target: Y.AbstractType<any> | null, event: Y.YEvent<any> | null) {
     if (!target) {
         return;
     }
 
-    const value = getSource(target);
-    
-    if (value) {
-        value[SpecialProperties.invalid] = true;
+    const source = getSource(target);
+
+    if (source && event) {
+        setEvent(source, event);
     }
 
-    if (value && event) {
-        value[SpecialProperties.event] = event;
+    if (isInvalid(target)) {
+        return;
+    }
+    
+    if (source) {
+        setInvalid(source);
     }
 
     invalidate(target.parent, null);
