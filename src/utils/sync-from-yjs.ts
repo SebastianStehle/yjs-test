@@ -5,7 +5,7 @@ import { ImmutableList } from './immutable-list';
 import { ImmutableMap } from './immutable-map';
 import { ImmutableObject } from './immutable-object';
 import { ImmutableSet } from './immutable-set';
-import { createInstance, Factories, getEvent, getSource, isInvalid, setEvent, setInvalid, setSource } from './sync-utils';
+import { createInstance, Factories, getEvent, getSource, getTarget, isInvalid, setEvent, setInvalid, setTarget } from './sync-utils';
 
 function syncValue(source: any, factories: Factories) {
     if (!isInvalid(source)) {
@@ -18,15 +18,19 @@ function syncValue(source: any, factories: Factories) {
         return source;
     }
 
+    let result: any;
     if (typeName === 'List') {
-        return syncList(source, factories);
+        result = syncList(source, factories);
     } else if (typeName === 'Map') {
-        return syncMap(source, factories);
+        result = syncMap(source, factories);
     } else if (typeName === 'Set') {
-        return syncSet(source);
+        result = syncSet(source);
     }  else {
-        return syncObject(source, factories);
-    } 
+        result = syncObject(source, factories);
+    }
+
+    setTarget(result, getTarget(source))
+    return result;
 }
 
 function syncList(source: ImmutableList<any>, factories: Factories) {
@@ -46,7 +50,7 @@ function syncList(source: ImmutableList<any>, factories: Factories) {
             return;
         }
 
-        const target = event.currentTarget as Y.Array<any>;
+        const target = event.target as Y.Array<any>;
     
         event.changes.keys.forEach((change, id) => {
             const index = parseInt(id, 10);
@@ -103,7 +107,7 @@ function syncMap(source: ImmutableMap<any>, factories: Factories) {
             return;
         }
     
-        const target = event.currentTarget as Y.Map<any>;
+        const target = event.target as Y.Map<any>;
 
         event.changes.keys.forEach((change, id) => {
             switch (change.action) {
@@ -133,7 +137,7 @@ function syncObject(source: ImmutableObject<any>, factories: Factories) {
     const event = getEvent(source);
 
     if (event) {
-        const target = event.currentTarget as Y.Map<any>;
+        const target = event.target as Y.Map<any>;
 
         event.changes.keys.forEach((change, id) => {
             switch (change.action) {
@@ -152,14 +156,12 @@ function syncObject(source: ImmutableObject<any>, factories: Factories) {
     return changes ? source.setMany(changes) : source;
 }
 
-export function syncFromY(source: ImmutableObject<any>, events: ReadonlyArray<Y.YEvent<any>>, factories: Factories) {
-    setSource(events[0].currentTarget, source);
-
+export function syncFromY<T extends ImmutableObject<any>>(source: T, events: ReadonlyArray<Y.YEvent<any>>, factories: Factories) {
     for (const event of events) {
         invalidate(event.target, event)
     }
 
-    return syncObject(source, factories);
+    return syncObject(source, factories) as T;
 }
 
 export function initFromY<T>(source: Y.Map<any>, factories: Factories) {

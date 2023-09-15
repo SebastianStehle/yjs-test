@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { configureStore, createAction, Middleware } from '@reduxjs/toolkit'
+import { configureStore, Middleware } from '@reduxjs/toolkit'
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import { syncToY } from './../utils/sync-to-yjs';
 import { Root, TaskItem, TaskList } from './state';
-import tasksReducer from './reducer';
-import { initFromY, syncFromY } from '../utils/sync-from-yjs';
+import tasksReducer, { setTasks } from './reducer';
+import { syncFromY } from '../utils/sync-from-yjs';
 import { Factories } from '../utils/sync-utils';
 
 const ydoc = new Y.Doc()
@@ -25,9 +25,11 @@ const factories: Factories = {
     }
 }
 
+/*
 const syncAction = createAction<Y.YEvent<any>[]>('SYNC_FROM_YJS');
 
 const initAction = createAction<Y.Map<any>>('INIT_FROM_YS');
+*/
 
 const syncMiddleware = () => {
     const middleware: Middleware = store => {
@@ -36,7 +38,7 @@ const syncMiddleware = () => {
                 return;
             }
 
-            store.dispatch(syncAction(events));
+            store.dispatch(setTasks(syncFromY<Root>(store.getState().tasks, events, factories)));
         });
 
         ydoc.on('synced', () => {
@@ -52,27 +54,13 @@ const syncMiddleware = () => {
         return next => action => {
             const stateOld = store.getState();
 
-            if (syncAction.match(action)) {
-                const stateOld = store.getState();
-
-                return {
-                    ...stateOld,
-                    tasks: syncFromY(stateOld.tasks, action.payload, factories)
-                };
-            } else if (initAction.match(action)) {
-                const stateOld = store.getState();
-
-                return {
-                    ...stateOld,
-                    tasks: initFromY(action.payload, factories)
-                };
-            }
-
             const result = next(action);
             
-            ydoc.transact(() => {
-                syncToY(store.getState().tasks, stateOld.tasks, yroot);
-            });
+            if (!setTasks.match(action)) {
+                ydoc.transact(() => {
+                    syncToY(store.getState().tasks, stateOld.tasks, yroot);
+                });
+            }
 
             return result;
         };

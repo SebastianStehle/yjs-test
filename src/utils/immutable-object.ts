@@ -49,7 +49,7 @@ export abstract class ImmutableObject<T extends object> implements HasIdentity {
     }
 
     public setMany(updates: Partial<T>): this {
-        return this.makeRecord({ ...this.values, updates });
+        return this.makeRecord({ ...this.values, ...updates });
     }
 
     private makeRecord(values: T) {

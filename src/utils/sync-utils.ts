@@ -8,10 +8,20 @@ import { Types } from './types';
 
 export function setSource(target: Y.AbstractType<any>, source: any) {
     (target as any)['__source'] = source;
+    (source as any)['__target'] = target;
+}
+
+export function setTarget(source: any, target: Y.AbstractType<any>) {
+    (target as any)['__source'] = source;
+    (source as any)['__target'] = target;
 }
 
 export function getSource(target: Y.AbstractType<any>) {
-    return (target as any)['__source'];
+    return (target as any)?.['__source'];
+}
+
+export function getTarget(target: Y.AbstractType<any>) {
+    return (target as any)?.['__target'];
 }
 
 export function setEvent(target: unknown, event: Y.YEvent<any>) {
@@ -19,7 +29,7 @@ export function setEvent(target: unknown, event: Y.YEvent<any>) {
 }
 
 export function getEvent(target: unknown): Y.YEvent<any> | undefined {
-    return (target as any)['__event'];
+    return (target as any)?.['__event'];
 }
 
 export function setInvalid(target: unknown, invalid = true) {
@@ -27,7 +37,7 @@ export function setInvalid(target: unknown, invalid = true) {
 }
 
 export function isInvalid(target: unknown) {
-    return (target as any)['__invalid'] === true;
+    return (target as any)?.['__invalid'] === true;
 }
 
 export type Factory = (value: any) => any;
@@ -39,7 +49,9 @@ export function createInstance(source: any, factories: Factories) {
         const values: Record<string, any> = {};
 
         for (const [key, value] of source.entries()) {
-            values[key] = createInstance(value, factories);
+            if (key !== TypeProperties.typeName) {
+                values[key] = createInstance(value, factories);
+            }
         }
 
         const typeName = source.get(TypeProperties.typeName) as string;

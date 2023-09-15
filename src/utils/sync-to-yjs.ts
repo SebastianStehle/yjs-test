@@ -167,7 +167,7 @@ function syncMap(current: ImmutableMap<any>, previous: ImmutableMap<any>, target
         target.set(key, valueToY(valueNew));
     }
 
-    for (const [key] of current) {
+    for (const [key] of previous) {
         if (!current.has(key)) {
             // The item has been removed.
             target.delete(key);
