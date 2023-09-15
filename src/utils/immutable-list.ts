@@ -21,6 +21,10 @@ export class ImmutableList<T> {
         return this.items.length;
     }
 
+    public get raw() {
+        return this.items;
+    }
+
     public get(index: number): T | undefined {
         return this.items[index];
     }

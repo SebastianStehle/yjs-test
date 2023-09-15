@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-let start = new Date().getTime();
+let start = 0;
 
 export function idGenerator() {
     return `${start++}`;

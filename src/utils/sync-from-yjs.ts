@@ -10,14 +10,14 @@ import { Types } from './types';
 
 export const SpecialProperties = {
     // To check which properties need to be tested.
-    invalid: '__source',
+    invalid: '__invalid',
 
     // The target event to apply.
     event: '__event',
 }
 
-type Factory = (value: any) => any;
-type Factories = { [key: string]: Factory };
+export type Factory = (value: any) => any;
+export type Factories = { [key: string]: Factory };
 
 function createInstance(source: any, factories: Factories) {
     if (Types.is(source, Y.Map)) {
@@ -197,7 +197,7 @@ function syncObject(source: ImmutableObject<any>, factories: Factories) {
 
 export function syncFromY(source: ImmutableObject<any>, events: ReadonlyArray<Y.YEvent<any>>, factories: Factories) {
     for (const event of events) {
-        invalidate(event.currentTarget, event)
+        invalidate(event.target, event)
     }
 
     return syncObject(source, factories);
@@ -214,7 +214,7 @@ function invalidate(target: Y.AbstractType<any> | null, event: Y.YEvent<any> | n
         value[SpecialProperties.invalid] = true;
     }
 
-    if (event) {
+    if (value && event) {
         value[SpecialProperties.event] = event;
     }
 

@@ -1,6 +1,6 @@
 /* eslint-disable no-prototype-builtins */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import * as Y from 'yjs'
+import * as Y from 'yjs';
 import { isSameInstanceId, TypeProperties } from './identity';
 import { ImmutableList } from './immutable-list';
 import { ImmutableMap } from './immutable-map';
@@ -9,12 +9,12 @@ import { ImmutableSet } from './immutable-set';
 import { setSource } from './sync';
 import { Types } from './types';
 
-function valueToYJS(source: any) {
+function valueToY(source: any) {
     if (source instanceof ImmutableList) {
         const items: any[] = [];
 
         for (const item of source) {
-            items.push(valueToYJS(item));
+            items.push(valueToY(item));
         }
 
         const array = Y.Array.from(items);
@@ -27,10 +27,10 @@ function valueToYJS(source: any) {
         };
 
         for (const [key, value] of source) {
-            entries[key] = valueToYJS(value);
+            entries[key] = valueToY(value);
         }
 
-        const map = new Y.Map(entries as any);
+        const map = new Y.Map(Object.entries(entries));
         setSource(map, source);
 
         return map;
@@ -40,10 +40,10 @@ function valueToYJS(source: any) {
         };
 
         for (const [key, value] of (source as ImmutableObject<any>)) {
-            entries[key] = valueToYJS(value);
+            entries[key] = valueToY(value);
         }
 
-        const map = new Y.Map(entries as any);
+        const map = new Y.Map(Object.entries(entries));
         setSource(map, source);
 
         return map;
@@ -76,8 +76,6 @@ function syncImmutable(current: any, previous: any, target: unknown) {
             return false;
         }
 
-        setSource(target, current);
-
         if (typeName === 'Map') {
             syncMap(current, previous, target);
             return true;
@@ -89,9 +87,7 @@ function syncImmutable(current: any, previous: any, target: unknown) {
             return true;
         }
     } else if (Types.is(target, Y.Array)) {
-        if (Types.is(current, ImmutableList) && Types.is(previous, ImmutableList)) {
-            setSource(target, current);
-            
+        if (Types.is(current, ImmutableList) && Types.is(previous, ImmutableList)) {            
             syncList(current, previous, target);
         }
     }
@@ -100,6 +96,8 @@ function syncImmutable(current: any, previous: any, target: unknown) {
 }
 
 function syncList(current: ImmutableList<any>, previous: ImmutableList<any>, target: Y.Array<any>) {
+    setSource(target, current);
+
     const minSize = Math.min(current.length, previous.length);
 
     for (let i = 0; i < minSize; i++) {
@@ -116,12 +114,12 @@ function syncList(current: ImmutableList<any>, previous: ImmutableList<any>, tar
         }
 
         target.delete(i);
-        target.insert(i, valueToYJS(itemNew));
+        target.insert(i, valueToY(itemNew));
     }
 
     if (current.length > previous.length) {
         for (let i = previous.length; i < current.length; i++) {
-            target.push(valueToYJS(current.get(i)));
+            target.push(valueToY(current.get(i)));
         }
     } else {
         target.slice(current.length, previous.length - current.length);
@@ -129,6 +127,8 @@ function syncList(current: ImmutableList<any>, previous: ImmutableList<any>, tar
 }
 
 function syncSet(current: ImmutableSet, previous: ImmutableSet, target: Y.Map<boolean>) {
+    setSource(target, current);
+
     for (const key of current) {
         if (!previous.has(key)) {
             // The item has been added.
@@ -145,10 +145,12 @@ function syncSet(current: ImmutableSet, previous: ImmutableSet, target: Y.Map<bo
 }
 
 function syncMap(current: ImmutableMap<any>, previous: ImmutableMap<any>, target: Y.Map<unknown>) {
+    setSource(target, current);
+
     for (const [key, valueNew] of current) {
         if (!previous.has(key)) {
             // The item has been added.
-            target.set(key, valueToYJS(valueNew));
+            target.set(key, valueToY(valueNew));
         }
 
         const valuePrev = previous.get(key);
@@ -162,7 +164,7 @@ function syncMap(current: ImmutableMap<any>, previous: ImmutableMap<any>, target
             continue;
         }
 
-        target.set(key, valueToYJS(valueNew));
+        target.set(key, valueToY(valueNew));
     }
 
     for (const [key] of current) {
@@ -174,10 +176,12 @@ function syncMap(current: ImmutableMap<any>, previous: ImmutableMap<any>, target
 }
 
 function syncObject(current: ImmutableObject<any>, previous: ImmutableObject<any>, target: Y.Map<any>) {
+    setSource(target, current);
+
     for (const [key, valueNew] of current) {
         if (!previous.contains(key)) {
             // The item has been added.
-            target.set(key, valueToYJS(valueNew));
+            target.set(key, valueToY(valueNew));
         }
 
         const valuePrev = previous.get(key);
@@ -191,7 +195,7 @@ function syncObject(current: ImmutableObject<any>, previous: ImmutableObject<any
             continue;
         }
 
-        target.set(key, valueToYJS(valueNew));
+        target.set(key, valueToY(valueNew));
     }
 
     for (const [key] of current) {
@@ -202,6 +206,6 @@ function syncObject(current: ImmutableObject<any>, previous: ImmutableObject<any
     }
 }
 
-export function syncToYJS(current: ImmutableObject<any>, previous: ImmutableObject<any>, target: Y.Map<any>) {
+export function syncToY(current: ImmutableObject<any>, previous: ImmutableObject<any>, target: Y.Map<any>) {
     syncObject(current, previous, target);
 }

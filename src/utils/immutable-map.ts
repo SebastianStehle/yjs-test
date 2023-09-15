@@ -18,6 +18,10 @@ export class ImmutableMap<T> {
         return Object.keys(this.items).length;
     }
 
+    public get raw() {
+        return this.items;
+    }
+
     public get(key: string): T | undefined {
         return this.items[key];
     }
