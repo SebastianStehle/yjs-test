@@ -45,7 +45,7 @@ export function bind(rootObject: Y.Map<any>, sliceName: string | undefined, fact
                 
                 if (!syncAction.match(action)) {
                     rootObject.doc!.transact(() => {
-                        syncToY(getState(), stateOld.tasks, rootObject);
+                        syncToY(getState(), stateOld, rootObject);
                     });
                 }
     
