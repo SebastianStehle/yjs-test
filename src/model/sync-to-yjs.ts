@@ -22,7 +22,9 @@ function valueToYJS(source: any) {
 
         return array;
     } else if (source instanceof ImmutableMap) {
-        const entries: { [key: string]: any } = {};
+        const entries: { [key: string]: any } = {
+            [TypeProperties.typeName]: source.__typeName
+        };
 
         for (const [key, value] of source) {
             entries[key] = valueToYJS(value);
@@ -34,7 +36,7 @@ function valueToYJS(source: any) {
         return map;
     } else if (source?.[TypeProperties.instanceId]) {
         const entries: { [key: string]: any } = {
-            [TypeProperties.typeName]: source[TypeProperties.typeName]
+            [TypeProperties.typeName]: source.__typeName
         };
 
         for (const [key, value] of (source as ImmutableObject<any>)) {
@@ -52,23 +54,49 @@ function valueToYJS(source: any) {
     }
 }
 
-function syncImmutable(current: any, previous: any, target: Y.AbstractType<any>) {
-    setSource(target, current);
-
-    switch (current.__typeName) {
-        case 'List':
-            syncList(current, previous, target as any);
-            break;
-        case 'Map':
-            syncMap(current, previous, target as any);
-            break;
-        case 'Set':
-            syncSet(current, previous, target as any);
-            break;
-        default:
-            syncObject(current, previous, target as any);
-            break;
+function syncImmutable(current: any, previous: any, target: unknown) {
+    if (!target) {
+        return false;
     }
+
+    if (!isSameInstanceId(current, previous)) {
+        // If the instance ids do not match, we assume that the properties have been replaced.
+        return false;
+    }
+
+    if (Types.is(target, Y.Map)) {
+        const typeName = target.get(TypeProperties.typeName);
+
+        if (!typeName) {
+            return false;
+        }
+   
+        // Type names do not match.
+        if (current?.[TypeProperties.typeName] !== typeName || previous?.[TypeProperties.typeName] !== typeName) {
+            return false;
+        }
+
+        setSource(target, current);
+
+        if (typeName === 'Map') {
+            syncMap(current, previous, target);
+            return true;
+        } else if (typeName === 'Set') {
+            syncSet(current, previous, target as any);
+            return true;
+        } else {
+            syncObject(current, previous, target);
+            return true;
+        }
+    } else if (Types.is(target, Y.Array)) {
+        if (Types.is(current, ImmutableList) && Types.is(previous, ImmutableList)) {
+            setSource(target, current);
+            
+            syncList(current, previous, target);
+        }
+    }
+    
+    return false;
 }
 
 function syncList(current: ImmutableList<any>, previous: ImmutableList<any>, target: Y.Array<any>) {
@@ -83,12 +111,12 @@ function syncList(current: ImmutableList<any>, previous: ImmutableList<any>, tar
             continue;
         }
 
-        if (isSameInstanceId(itemNew, itemPrev)) {
-            syncImmutable(itemNew, itemPrev, target.get(i));
-        } else {
-            target.delete(i);
-            target.insert(i, valueToYJS(itemNew));
+        if (syncImmutable(itemNew, itemPrev, target.get(i))) {
+            continue;
         }
+
+        target.delete(i);
+        target.insert(i, valueToYJS(itemNew));
     }
 
     if (current.length > previous.length) {
@@ -116,7 +144,7 @@ function syncSet(current: ImmutableSet, previous: ImmutableSet, target: Y.Map<bo
     }
 }
 
-function syncMap(current: ImmutableMap<any>, previous: ImmutableMap<any>, target: Y.Map<any>) {
+function syncMap(current: ImmutableMap<any>, previous: ImmutableMap<any>, target: Y.Map<unknown>) {
     for (const [key, valueNew] of current) {
         if (!previous.has(key)) {
             // The item has been added.
@@ -130,11 +158,11 @@ function syncMap(current: ImmutableMap<any>, previous: ImmutableMap<any>, target
             continue;
         }
 
-        if (isSameInstanceId(valueNew, valuePrev)) {
-            syncImmutable(valueNew, valuePrev, target.get(key));
-        } else {
-            target.set(key, valueToYJS(valueNew));
+        if (syncImmutable(valueNew, valuePrev, target.get(key))) {
+            continue;
         }
+
+        target.set(key, valueToYJS(valueNew));
     }
 
     for (const [key] of current) {
@@ -159,11 +187,11 @@ function syncObject(current: ImmutableObject<any>, previous: ImmutableObject<any
             continue;
         }
 
-        if (isSameInstanceId(valueNew, valuePrev)) {
-            syncImmutable(valueNew, valuePrev, target.get(key));
-        } else {
-            target.set(key, valueToYJS(valueNew));
+        if (syncImmutable(valueNew, valuePrev, target.get(key))) {
+            continue;
         }
+
+        target.set(key, valueToYJS(valueNew));
     }
 
     for (const [key] of current) {

@@ -6,6 +6,7 @@ import { ImmutableMap } from './immutable-map';
 import { ImmutableObject } from './immutable-object';
 import { ImmutableSet } from './immutable-set';
 import { getSource, setSource } from './sync';
+import { Types } from './types';
 
 export const SpecialProperties = {
     // To check which properties need to be tested.
@@ -19,12 +20,36 @@ type Factory = (value: any) => any;
 type Factories = { [key: string]: Factory };
 
 function createInstance(source: any, factories: Factories) {
-    const typeName = source?.[TypeProperties.typeName];
+    if (Types.is(source, Y.Map)) {
+        const values: Record<string, any> = {};
 
-    if (typeName) {
-        const result = factories[typeName](source);
+        for (const [key, value] of source.entries()) {
+            values[key] = createInstance(value, factories);
+        }
+
+        const typeName = source.get(TypeProperties.typeName) as string;
+
+        if (!typeName) {
+            return values;
+        }
+
+        let result: any;
+        if (typeName === 'Map') {
+            result = ImmutableMap.of(values);
+        } else if (typeName === 'Set') {
+            result = ImmutableSet.of(...Object.keys(values));
+        } else {
+            result = factories[typeName](values);
+        }
+
         setSource(source, result);
+        return result;
+    } else if (Types.is(source, Y.Array)) {
+        const values: any[] = source.map(i => createInstance(i, factories));
 
+        const result = ImmutableList.of(values);
+
+        setSource(source, result);
         return result;
     }
 
@@ -38,17 +63,19 @@ function syncValue(source: any, factories: Factories) {
 
     const typeName = source?.[TypeProperties.typeName];
 
+    if (!typeName) {
+        return source;
+    }
+
     if (typeName === 'List') {
         return syncList(source, factories);
     } else if (typeName === 'Map') {
         return syncMap(source, factories);
     } else if (typeName === 'Set') {
         return syncSet(source);
-    }  else if (source?.[TypeProperties.instanceId]) {
+    }  else {
         return syncObject(source, factories);
-    } else {
-        return source;
-    }    
+    } 
 }
 
 function syncList(source: ImmutableList<any>, factories: Factories) {

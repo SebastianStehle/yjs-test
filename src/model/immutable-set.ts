@@ -1,4 +1,5 @@
 /* eslint-disable no-prototype-builtins */
+import { idGenerator } from './identity';
 import { Types, without } from './types';
 
 type Mutator = {
@@ -8,8 +9,6 @@ type Mutator = {
 };
 
 export class ImmutableSet {
-    private static readonly EMPTY = new ImmutableSet({});
-
     public readonly __typeName = 'Set';
 
     public get length() {
@@ -25,18 +24,18 @@ export class ImmutableSet {
     }
 
     private constructor(private readonly items: { [item: string]: boolean },
-        public readonly __instanceId?: string
+        public readonly __instanceId: string
     ) {
         Object.freeze(items);
     }
 
     public static empty(): ImmutableSet {
-        return ImmutableSet.EMPTY;
+        return new ImmutableSet({}, idGenerator());
     }
 
     public static of(...items: string[]): ImmutableSet {
         if (!items || items.length === 0) {
-            return ImmutableSet.EMPTY;
+            return ImmutableSet.empty();
         } else {
             const itemMap: Record<string, boolean> = {};
 
@@ -44,7 +43,7 @@ export class ImmutableSet {
                 itemMap[item] = true;
             }
 
-            return new ImmutableSet(itemMap);
+            return new ImmutableSet(itemMap, idGenerator());
         }
     }
 
@@ -55,7 +54,7 @@ export class ImmutableSet {
 
         const items = { ...this.items, [item]: true };
 
-        return new ImmutableSet(items);
+        return new ImmutableSet(items, this.__instanceId);
     }
 
     public remove(item: string): ImmutableSet {
@@ -65,7 +64,7 @@ export class ImmutableSet {
 
         const items = without(this.items, item);
 
-        return new ImmutableSet(items);
+        return new ImmutableSet(items, this.__instanceId);
     }
 
     public mutate(updater: (mutator: Mutator) => void) {
@@ -98,7 +97,7 @@ export class ImmutableSet {
             return this;
         }
 
-        return new ImmutableSet(items);
+        return new ImmutableSet(items, this.__instanceId);
     }
 
     public equals(other: ImmutableSet) {

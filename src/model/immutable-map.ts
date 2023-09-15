@@ -1,5 +1,6 @@
 /* eslint-disable no-prototype-builtins */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { idGenerator } from './identity';
 import { Types, without } from './types';
 
 type Mutator<T> = {
@@ -11,8 +12,6 @@ type Mutator<T> = {
 };
 
 export class ImmutableMap<T> {
-    private static readonly EMPTY = new ImmutableMap<any>([]);
-
     public readonly __typeName = 'Map';
 
     public get size() {
@@ -32,24 +31,24 @@ export class ImmutableMap<T> {
     }
 
     private constructor(private readonly items: { [key: string]: T },
-        public readonly __instanceId?: string
+        public readonly __instanceId: string,
     ) {
         Object.freeze(items);
     }
 
     public static empty<V>(): ImmutableMap<V> {
-        return ImmutableMap.EMPTY;
+        return new ImmutableMap({}, idGenerator());
     }
 
     public static of<V>(items: { [key: string]: V } | ImmutableMap<V> | undefined) {
         if (!items) {
-            return ImmutableMap.EMPTY;
+            return ImmutableMap.empty();
         } else if (items instanceof ImmutableMap) {
             return items;
         } else if (Object.keys(items).length === 0) {
-            return ImmutableMap.EMPTY;
+            return ImmutableMap.empty();
         } else {
-            return new ImmutableMap<V>(items);
+            return new ImmutableMap<V>(items, idGenerator());
         }
     }
 
@@ -83,7 +82,7 @@ export class ImmutableMap<T> {
             return this;
         }
 
-        return new ImmutableMap<T>(updatedItems);
+        return new ImmutableMap<T>(updatedItems, this.__instanceId);
     }
 
     public set(key: string, value: T) {
@@ -99,7 +98,7 @@ export class ImmutableMap<T> {
 
         const items = { ...this.items, [key]: value };
 
-        return new ImmutableMap<T>(items);
+        return new ImmutableMap<T>(items, this.__instanceId);
     }
 
     public remove(key: string) {
@@ -109,7 +108,7 @@ export class ImmutableMap<T> {
 
         const items = without(this.items, key);
 
-        return new ImmutableMap<T>(items);
+        return new ImmutableMap<T>(items, this.__instanceId);
     }
 
     public mutate(updater: (mutator: Mutator<T>) => void): ImmutableMap<T> {
@@ -157,7 +156,7 @@ export class ImmutableMap<T> {
             return this;
         }
 
-        return new ImmutableMap(updatedItems);
+        return new ImmutableMap(updatedItems, this.__instanceId);
     }
 
     public equals(other: ImmutableMap<T>) {

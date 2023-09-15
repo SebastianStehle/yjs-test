@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { moveItems } from './collections';
-import { HasIdentity } from './identity';
+import { idGenerator } from './identity';
 import { Types } from './types';
 
 type Mutator<T> = {
@@ -14,10 +14,8 @@ type Mutator<T> = {
     removeAt: (index: number) => void;
 };
 
-export class ImmutableList<T> implements HasIdentity {
-    private static readonly EMPTY = new ImmutableList<any>([]);
-
-    public readonly __typeName = 'Map';
+export class ImmutableList<T> {
+    public readonly __typeName = 'List';
 
     public get length() {
         return this.items.length;
@@ -32,24 +30,24 @@ export class ImmutableList<T> implements HasIdentity {
     }
 
     constructor(private readonly items: ReadonlyArray<T>,
-        public readonly __instanceId?: string
+        public readonly __instanceId: string,
     ) {
         Object.freeze(items);
     }
 
     public static empty<V>(): ImmutableList<V> {
-        return ImmutableList.EMPTY;
+        return new ImmutableList<V>([], idGenerator());
     }
 
     public static of<V>(items: ReadonlyArray<V> | ImmutableList<V> | undefined) {
         if (!items) {
-            return ImmutableList.EMPTY;
+            return ImmutableList.empty();
         } else if (items instanceof ImmutableList) {
             return items;
         } else if (items.length === 0) {
-            return ImmutableList.EMPTY;
+            return ImmutableList.empty();
         } else {
-            return new ImmutableList<V>(items);
+            return new ImmutableList<V>(items, idGenerator());
         }
     }
 
@@ -166,7 +164,7 @@ export class ImmutableList<T> implements HasIdentity {
             return this;
         }
 
-        return new ImmutableList(updatedItems);
+        return new ImmutableList(updatedItems, this.__instanceId);
     }
 
     public equals(other: ImmutableList<T>) {
