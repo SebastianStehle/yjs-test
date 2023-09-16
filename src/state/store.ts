@@ -29,7 +29,8 @@ const options: SyncOptions = {
         [ImmutableListResolver.TYPE_NAME]: ImmutableListResolver.INSTANCE,
         [ImmutableMapResolver.TYPE_NAME]: ImmutableMapResolver.INSTANCE,
         [ImmutableSetResolver.TYPE_NAME]: ImmutableSetResolver.INSTANCE,
-    }
+    },
+    valueResolvers: {}
 };
 
 const binder = bind(ydoc, 'tasks', options);

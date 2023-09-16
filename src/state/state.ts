@@ -1,5 +1,6 @@
 import { ImmutableMap } from "../utils/immutable-map";
 import { ImmutableObject } from "../utils/immutable-object";
+import { SourceObject, ValueResolver } from "../utils/sync-utils";
 
 
 interface RootProps {
@@ -71,7 +72,7 @@ export class TaskList extends ImmutableObject<TaskListProps> {
 }
 
 interface TaskItemProps {
-    color?: string;
+    color?: Color;
 
     title?: string;
 }
@@ -92,11 +93,40 @@ export class TaskItem extends ImmutableObject<TaskItemProps> {
         }, 'TaskItem');
     }
 
-    public setColor(color?: string) {
+    public setColor(color?: Color) {
         return this.set('color', color);
     }
 
     public setTitle(title?: string) {
         return this.set('title', title);
     }
+}
+
+export class Color {
+    public readonly __typeName = Color.TYPE_NAME;
+
+    public static readonly TYPE_NAME = 'ImmutableList';
+
+    public constructor(
+        public readonly value: string
+    ) {
+    }
+}
+
+export class ColorValueResolver implements ValueResolver<Color> {
+    public static readonly INSTANCE = new ColorValueResolver();
+
+    public static readonly TYPE_NAME = Color.TYPE_NAME;
+
+    private constructor() {
+    }
+
+    public fromYJS(source: SourceObject): Color {
+        return new Color(source['value'] as string);
+    }
+
+    fromValue(source: Color): Readonly<{ [key: string]: unknown; }> {
+        return { value: source.value };
+    }
+
 }

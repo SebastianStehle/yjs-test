@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as Y from 'yjs';
 import { getTypeName } from './identity';
-import { yToValue, getSource, getTarget, setTarget } from './sync-internals';
+import { yjsToValue, getSource, getTarget, setTarget } from './sync-internals';
 import { ArrayDiff, ArrayTypeResolver, ObjectDiff, ObjectTypeResolver, SyncOptions } from './sync-utils';
 import { Types } from './types';
 
@@ -66,10 +66,10 @@ function syncObject(source: Readonly<Record<string, object>>, event: Y.YEvent<an
     
             switch (change.action) {
                 case 'add':
-                    result[key] = yToValue(target.get(key), options);
+                    result[key] = yjsToValue(target.get(key), options);
                     break;
                 case 'update':
-                    result[key] = yToValue(target.get(key), options);
+                    result[key] = yjsToValue(target.get(key), options);
                     break;
                 case 'delete':
                     delete result[key];
@@ -108,10 +108,10 @@ function syncTypedObject(source: any, event: Y.YEvent<any> | undefined, typeReso
 
             switch (change.action) {
                 case 'add':
-                    diffs.push({ type: 'Set', key, value: yToValue(target.get(key), options) });
+                    diffs.push({ type: 'Set', key, value: yjsToValue(target.get(key), options) });
                     break;
                 case 'update':
-                    diffs.push({ type: 'Set', key, value: yToValue(target.get(key), options) });
+                    diffs.push({ type: 'Set', key, value: yjsToValue(target.get(key), options) });
                     break;
                 case 'delete':
                     diffs.push({ type: 'Remove', key });
@@ -154,10 +154,10 @@ function syncArray(source: ReadonlyArray<unknown>, event: Y.YEvent<any> | undefi
             result ||= [...source];
             switch (change.action) {
                 case 'add':
-                    result!.splice(index, 1, yToValue(target.get(index), options));
+                    result!.splice(index, 1, yjsToValue(target.get(index), options));
                     break;
                 case 'update':
-                    result![index] = yToValue(target.get(index), options);
+                    result![index] = yjsToValue(target.get(index), options);
                     break;
                 case 'delete':
                     result!.splice(index, 1);
@@ -198,10 +198,10 @@ function syncTypedArray(source: any, event: Y.YEvent<any> | undefined, typeResol
             diffs ||= [];
             switch (change.action) {
                 case 'add':
-                    diffs.push({ type: 'Insert', index, value: yToValue(target.get(index), options) });
+                    diffs.push({ type: 'Insert', index, value: yjsToValue(target.get(index), options) });
                     break;
                 case 'update':
-                    diffs.push({ type: 'Set', index, value: yToValue(target.get(index), options) });
+                    diffs.push({ type: 'Set', index, value: yjsToValue(target.get(index), options) });
                     break;
                 case 'delete':
                     diffs.push({ type: 'Delete', index });

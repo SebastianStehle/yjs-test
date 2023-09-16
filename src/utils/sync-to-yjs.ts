@@ -28,6 +28,16 @@ function valueToY(source: any, options: SyncOptions, doc?: Y.Doc, sliceName?: st
         return source;
     }
 
+    const valueResolver = options.valueResolvers[typeName];
+
+    if (valueResolver) {
+        const result = valueResolver.fromValue(source);
+
+        // Also set the type name so that we can read from it.
+        result[TypeProperties.typeName] = source;
+        return result;
+    }
+
     const typeResolver = options.typeResolvers[typeName];
 
     if (!typeResolver) {

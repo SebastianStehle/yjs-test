@@ -2,6 +2,9 @@ export type SyncOptions = {
     // The type resolvers.
     typeResolvers: Record<string, ObjectTypeResolver<unknown> | ArrayTypeResolver<unknown>>;
 
+    // The value resolvers.
+    valueResolvers: Record<string, ValueResolver<unknown>>;
+
     // True when all objects should be synced.
     syncAlways?: boolean;
 };
@@ -44,4 +47,10 @@ export interface ObjectTypeResolver<T> extends TypeResolver<T, SourceObject, Obj
 
 export interface ArrayTypeResolver<T> extends TypeResolver<T, SourceArray, ArrayDiff> {
     sourceType: 'Array';
+}
+
+export interface ValueResolver<T> {
+    fromYJS(source: SourceObject): T;
+
+    fromValue(source: T): Record<string, unknown>;
 }

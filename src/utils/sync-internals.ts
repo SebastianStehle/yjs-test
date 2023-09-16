@@ -28,7 +28,7 @@ export function getTarget(target: Y.AbstractType<any>) {
     return mapToTarget.get(target);
 }
 
-export function yToValue(source: any, options: SyncOptions) {
+export function yjsToValue(source: any, options: SyncOptions) {
     let result = source;
 
     if (Types.is(source, Y.Map)) {
@@ -37,6 +37,25 @@ export function yToValue(source: any, options: SyncOptions) {
     } else if (Types.is(source, Y.Array)) {
         result = createFromArray(source, options);
         setSource(source, result);
+    }
+
+    if (Types.isObject(source)) {
+        const typeName = getTypeName(source);
+
+        if (!typeName) {
+            return result;
+        }
+
+        const valueResolver = options.valueResolvers[typeName];
+    
+        if (!valueResolver) {
+            throw new Error(`Cannot find type resolver for '${typeName}.`);
+        }
+
+        // Delete the type name, because it was not part of the object that has been created when syncing to yjs.
+        delete source[TypeProperties.typeName];
+
+        return valueResolver.fromYJS(source);
     }
 
     return result;
@@ -67,7 +86,7 @@ function createFromMapCore(source: Y.Map<any>, options: SyncOptions) {
     const values: Record<string, any> = {};
 
     for (const [key, value] of source.entries()) {            
-        values[key] = yToValue(value, options);
+        values[key] = yjsToValue(value, options);
     }
 
     return values;
@@ -98,7 +117,7 @@ function createFromArrayCore(source: Y.Array<any>, options: SyncOptions) {
     const values: any[] = [];
 
     for (const value of source) {         
-        values.push(yToValue(value, options));
+        values.push(yjsToValue(value, options));
     }
 
     return values;
