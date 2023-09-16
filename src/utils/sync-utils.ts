@@ -1,26 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-export const TypeProperties = {
-    instanceId: '__instanceId',
-
-    // Used to identity the type name of previous files.
-    typeName: '__typeName',
-};
-
 export type SyncOptions = {
     // The type resolvers.
     typeResolvers: Record<string, ObjectTypeResolver<unknown> | ArrayTypeResolver<unknown>>;
 
-    // The strategy to use when deciding what to sync.
-    strategy: SyncStrategy;
+    // True when all objects should be synced.
+    syncAlways?: boolean;
 };
-
-export function getInstanceId(target: unknown) {
-    return (target as any)?.[TypeProperties.instanceId] as string | undefined | null;
-}
-
-export function getTypeName(target: unknown) {
-    return (target as any)?.[TypeProperties.typeName] as string | undefined | null;
-}
 
 export type SyncStrategy = 'Always' | 'IsEntity';
 
@@ -42,7 +26,7 @@ export type ObjectSet = { type: 'Set', value: unknown } & ObjectBaseDiff;
 
 export type ObjectRemove = { type: 'Remove' } & ObjectBaseDiff;
 
-export type SourceObject = Readonly<Record<string, unknown>>;
+export type SourceObject = Readonly<{ [key: string]: unknown }>;
 
 export type SourceArray = ReadonlyArray<unknown>;
 

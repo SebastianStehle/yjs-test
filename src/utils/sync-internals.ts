@@ -1,96 +1,105 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as Y from 'yjs';
-import { TypeProperties } from './identity';
-import { getTypeName, SyncOptions } from './sync-utils';
+import { getTypeName, TypeProperties } from './identity';
+import { SyncOptions } from './sync-utils';
 import { Types } from './types';
 
+const mapToTarget = new WeakMap();
+
 export function setSource(target: Y.AbstractType<any>, source: any) {
-    (target as any)['__source'] = source;
-    (source as any)['__target'] = target;
+    (target as any)['__source'] = source,
+
+    // The source object is from redux and potentially frozen.
+    mapToTarget.set(source, target);
 }
 
 export function setTarget(source: any, target: Y.AbstractType<any>) {
-    (target as any)['__source'] = source;
-    (source as any)['__target'] = target;
+    (target as any)['__source'] = source,
+
+    // The source object is from redux and potentially frozen.
+    mapToTarget.set(source, target);
 }
 
 export function getSource(target: Y.AbstractType<any>) {
-    return (target as any)?.['__source'];
+    return (target as any)['__source'];
 }
 
 export function getTarget(target: Y.AbstractType<any>) {
-    return (target as any)?.['__target'];
+    return mapToTarget.get(target);
 }
 
-export function createInstance(source: any, options: SyncOptions) {
-    let result: any;
+export function yToValue(source: any, options: SyncOptions) {
+    let result = source;
 
     if (Types.is(source, Y.Map)) {
         result = createFromMap(source, options);
+        setSource(source, result);
     } else if (Types.is(source, Y.Array)) {
         result = createFromArray(source, options);
+        setSource(source, result);
     }
 
-    setSource(source, result);
-    return source;
+    return result;
 }
 
 function createFromMap(source: Y.Map<any>, options: SyncOptions) {
-    let typeName: string | null  = null;
+    const typeName = source.get(TypeProperties.typeName) as string;
 
-    const values: Record<string, any> = {};
-
-    for (const [key, value] of source.entries()) {
-        if (TypeProperties.typeName === key) {
-            typeName = value;
-            continue;
-        }
-            
-        values[key] = createInstance(value, options);
-    }
-
-    if (!typeName) {
-        return values;
+    if (!typeName && options.syncAlways) {
+        return createFromMapCore(source, options);
     }
     
     const typeResolver = options.typeResolvers[typeName];
     
     if (!typeResolver || typeResolver.sourceType !== 'Object') {
-        return source;
+        throw new Error(`Cannot find type resolver for '${typeName}.`);
     }
+
+    const values = createFromMapCore(source, options);
+
+    // We do not need the type properties because the type resolver has this information already.
+    delete values[TypeProperties.typeName];
 
     return typeResolver.create(values);
 }
 
-function createFromArray(source: Y.Array<any>, options: SyncOptions) {
-    let typeName: string | null  = null;
+function createFromMapCore(source: Y.Map<any>, options: SyncOptions) {
+    const values: Record<string, any> = {};
 
-    const values: any[] = [];
-
-    let index = 0;
-    for (const value of source) {
-        if (index === 0) {
-            const candidate = getTypeName(value);
-
-            if (candidate) {
-                typeName = candidate;
-                continue;
-            }
-        }
-
-        values.push(createInstance(value, options));
-        index++;
+    for (const [key, value] of source.entries()) {            
+        values[key] = yToValue(value, options);
     }
 
+    return values;
+}
+
+function createFromArray(source: Y.Array<any>, options: SyncOptions): any {
+    const typeName = getTypeName(source.get(0));
+
     if (!typeName) {
-        return values;
+        return createFromArray(source, options);
     }
     
     const typeResolver = options.typeResolvers[typeName];
     
     if (!typeResolver || typeResolver.sourceType !== 'Array') {
-        return source;
+        throw new Error(`Cannot find type resolver for '${typeName}.`);
     }
 
+    const values = createFromArrayCore(source, options);
+
+    // We do not need the type properties because the type resolver has this information already.
+    values.splice(0, 1);
+
     return typeResolver.create(values);
+}
+
+function createFromArrayCore(source: Y.Array<any>, options: SyncOptions) {
+    const values: any[] = [];
+
+    for (const value of source) {         
+        values.push(yToValue(value, options));
+    }
+
+    return values;
 }

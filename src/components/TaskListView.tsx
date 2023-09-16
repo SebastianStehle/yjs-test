@@ -26,7 +26,7 @@ export const TaskListView = (props: TaskListViewProps) => {
             <CardHeader>
                 <Row className='align-items-center'>
                     <Col>
-                        {list.title || 'List'}
+                        {list.title || 'List'} {listId}
                     </Col>
                     <Col xs='auto'>
                         <Button color='success' size='sm' className='me-1' onClick={doAdd}>

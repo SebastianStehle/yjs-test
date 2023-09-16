@@ -1,98 +1,223 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as Y from 'yjs';
-import { createInstance, getSource, getTarget, setTarget } from './sync-internals';
-import { ArrayDiff, ArrayTypeResolver, getTypeName, ObjectDiff, ObjectTypeResolver, SyncOptions } from './sync-utils';
+import { getTypeName } from './identity';
+import { yToValue, getSource, getTarget, setTarget } from './sync-internals';
+import { ArrayDiff, ArrayTypeResolver, ObjectDiff, ObjectTypeResolver, SyncOptions } from './sync-utils';
+import { Types } from './types';
 
 function syncValue(source: any, options: SyncOptions) {
     if (!isInvalid(source)) {
         return source;
     }
 
-    const event = getEvent(source);
-
-    if (!event) {
-        return source;
-    }
+    let result: any;
 
     const typeName = getTypeName(source);
 
     if (!typeName) {
+        if (Types.isObject(source)) {
+            result = syncObject(source, getEvent(source), options);
+        } else if (Types.isArray(source)) {
+            result = syncArray(source, getEvent(source), options);
+        }
+
         return source;
     }
+
 
     const typeResolver = options.typeResolvers[typeName];
 
     if (!typeResolver) {
-        return source;
+        throw new Error(`Cannot find type resolver for '${typeName}.`);
     }
 
-    let result: any;
-    if (typeResolver.sourceType === 'Array') {
-        result = syncFromArray(source, typeResolver, event, options);
-    } else {
-        result = syncFromObject(source, typeResolver, event, options);
+    if (typeResolver.sourceType === 'Object') {
+        result = syncTypedObject(source, getEvent(source), typeResolver, options);
+    } else if (typeResolver.sourceType === 'Array') {
+        result = syncTypedArray(source, getEvent(source), typeResolver, options);
     }
 
     setTarget(result, getTarget(source));
     return result;
 }
 
-function syncFromArray(source: any, typeResolver: ArrayTypeResolver<any>, event: Y.YEvent<any>, options: SyncOptions) {
+function syncObject(source: Readonly<Record<string, object>>, event: Y.YEvent<any> | undefined, options: SyncOptions) {
+    let result: Record<string, object> | undefined = undefined;
 
-    const target = event.target;
+    // Because of immutability we have to check if there is a change down the path.
+    for (const [key, valueOld] of Object.entries(source)) {
+        const valueNew = syncValue(valueOld, options);
 
-    if (!(target instanceof Y.Array<any>)) {
-        throw new Error('Invalid sync target.');
+        if (valueNew !== valueOld) {
+            result ||= { ...source };
+            result[key] = valueNew;
+        }
+    }
+    
+    if (event) {
+        const target = event.target as Y.Map<unknown>;
+
+        if (!(target instanceof Y.Map)) {
+            throw new Error('Cannot sync from invalid target.');
+        }
+
+        event.changes.keys.forEach((change, key) => {
+            result ||= { ...source };
+    
+            switch (change.action) {
+                case 'add':
+                    result[key] = yToValue(target.get(key), options);
+                    break;
+                case 'update':
+                    result[key] = yToValue(target.get(key), options);
+                    break;
+                case 'delete':
+                    delete result[key];
+                    break;
+            }
+        });
     }
 
-    const diffs: ArrayDiff[] = [];
-    
-    event.changes.keys.forEach((change, key) => {
-        const index = parseInt(key, 10);
-
-        switch (change.action) {
-            case 'add':
-                diffs.push({ type: 'Insert', index, value: createInstance(target.get(index), options) });
-                break;
-            case 'update':
-                diffs.push({ type: 'Set', index, value: createInstance(target.get(index), options) });
-                break;
-            case 'delete':
-                diffs.push({ type: 'Delete', index });
-                break;
-        }
-    });
-    
-    return typeResolver.syncToObject(source, diffs);
+    return result || source;
 }
 
-function syncFromObject(source: any, typeResolver: ObjectTypeResolver<any>, event: Y.YEvent<any>, options: SyncOptions) {
-    const target = event.target;
+function syncTypedObject(source: any, event: Y.YEvent<any> | undefined, typeResolver: ObjectTypeResolver<any>, options: SyncOptions) {
+    let diffs: ObjectDiff[] | undefined;
 
-    if (!(target instanceof Y.Map<any>)) {
-        throw new Error('Invalid sync target.');
+    const sourceValue = typeResolver.syncToYJS(source);
+
+    // Because of immutability we have to check if there is a change down the path.
+    for (const [key, valueOld] of Object.entries(sourceValue)) {
+        const valueNew = syncValue(valueOld, options);
+
+        if (valueNew !== valueOld) {
+            diffs ||= [];
+            diffs.push({ type: 'Set', key, value: valueNew });
+        }
+    }
+    
+    if (event) {
+        const target = event.target as Y.Map<unknown>;
+
+        if (!(target instanceof Y.Map)) {
+            throw new Error('Cannot sync from invalid target.');
+        }
+
+        event.changes.keys.forEach((change, key) => {
+            diffs ||= [];
+
+            switch (change.action) {
+                case 'add':
+                    diffs.push({ type: 'Set', key, value: yToValue(target.get(key), options) });
+                    break;
+                case 'update':
+                    diffs.push({ type: 'Set', key, value: yToValue(target.get(key), options) });
+                    break;
+                case 'delete':
+                    diffs.push({ type: 'Remove', key });
+                    break;
+            }
+        });
     }
 
-    const diffs: ObjectDiff[] = [];
-    
-    event.changes.keys.forEach((change, key) => {
-        switch (change.action) {
-            case 'add':
-                diffs.push({ type: 'Set', key, value: createInstance(target.get(key), options) });
-                break;
-            case 'update':
-                diffs.push({ type: 'Set', key, value: createInstance(target.get(key), options) });
-                break;
-            case 'delete':
-                diffs.push({ type: 'Remove', key });
-                break;
-        }
-    });
-    
-    return typeResolver.syncToObject(source, diffs);
+    if (diffs) {
+        return typeResolver.syncToObject(source, diffs);
+    }
+
+    return source;
 }
 
-export function syncFromY<T>(source: T, events: ReadonlyArray<Y.YEvent<any>>, options: SyncOptions) {
+function syncArray(source: ReadonlyArray<unknown>, event: Y.YEvent<any> | undefined, options: SyncOptions) {
+    let result: unknown[] | undefined = undefined;
+
+    // Because of immutability we have to check if there is a change down the path.
+    for (let i = 0; i < source.length; i++) {
+        const itemOld = source[i];
+        const itemNew = syncValue(itemOld, options);
+
+        if (itemOld !== itemNew) {
+            result ||= [...source];
+            result[i] = itemNew;
+        }
+    }
+    
+    if (event) {
+        const target = event.target as Y.Array<unknown>;
+
+        if (!(target instanceof Y.Array)) {
+            throw new Error('Cannot sync from invalid target.');
+        }
+
+        event.changes.keys.forEach((change, key) => {
+            const index = parseInt(key, 10) + 1;
+    
+            result ||= [...source];
+            switch (change.action) {
+                case 'add':
+                    result!.splice(index, 1, yToValue(target.get(index), options));
+                    break;
+                case 'update':
+                    result![index] = yToValue(target.get(index), options);
+                    break;
+                case 'delete':
+                    result!.splice(index, 1);
+                    break;
+            }
+        });
+    }
+
+    return result || source;
+}
+
+function syncTypedArray(source: any, event: Y.YEvent<any> | undefined, typeResolver: ArrayTypeResolver<any>, options: SyncOptions) {
+    let diffs: ArrayDiff[] | undefined = undefined;
+
+    const sourceValue = typeResolver.syncToYJS(source);
+
+    // Because of immutability we have to check if there is a change down the path.
+    for (let i = 0; i < source.length; i++) {
+        const itemOld = sourceValue[i];
+        const itemNew = syncValue(itemOld, options);
+
+        if (itemOld !== itemNew) {
+            diffs ||= [];
+            diffs.push({ type: 'Set', index: i, value: itemNew });
+        }
+    }
+    
+    if (event) {
+        const target = event.target as Y.Array<unknown>;
+
+        if (!(target instanceof Y.Array)) {
+            throw new Error('Cannot sync from invalid target.');
+        }
+
+        event.changes.keys.forEach((change, key) => {
+            const index = parseInt(key, 10) + 1;
+    
+            diffs ||= [];
+            switch (change.action) {
+                case 'add':
+                    diffs.push({ type: 'Insert', index, value: yToValue(target.get(index), options) });
+                    break;
+                case 'update':
+                    diffs.push({ type: 'Set', index, value: yToValue(target.get(index), options) });
+                    break;
+                case 'delete':
+                    diffs.push({ type: 'Delete', index });
+                    break;
+            }
+        });
+    }
+
+    if (diffs) {
+        return typeResolver.syncToObject(source, diffs);
+    }
+
+    return source;
+}
+
+export function syncFromYJS<T>(source: T, events: ReadonlyArray<Y.YEvent<any>>, options: SyncOptions) {
     for (const event of events) {
         invalidate(event.target, event);
     }
@@ -122,18 +247,22 @@ function invalidate(target: Y.AbstractType<any> | null, event: Y.YEvent<any> | n
     invalidate(target.parent, null);
 }
 
-function setEvent(target: unknown, event: Y.YEvent<any>) {
-    (target as any)['__event'] = event;
+// We need weak maps here because the target object could be frozen due to the redux store.
+const mapToEvent = new WeakMap();
+const mapToInvalid = new WeakMap();
+
+function setEvent(target: object, event: Y.YEvent<any>) {
+    mapToEvent.set(target, event);
 }
 
-function getEvent(target: unknown): Y.YEvent<any> | undefined {
-    return (target as any)?.['__event'];
+function getEvent(target: object): Y.YEvent<any> | undefined {
+    return mapToEvent.get(target);
 }
 
-function setInvalid(target: unknown, invalid = true) {
-    (target as any)['__invalid'] = invalid;
+function setInvalid(target: object, invalid = true) {
+    mapToInvalid.set(target, invalid);
 }
 
-function isInvalid(target: unknown) {
-    return (target as any)?.['__invalid'] === true;
+function isInvalid(target: object) {
+    return mapToInvalid.get(target) === true;
 }

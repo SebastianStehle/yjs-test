@@ -12,7 +12,6 @@ import ImmutableMapResolver from '../utils/immutable-map-resolver';
 import ImmutableSetResolver from '../utils/immutable-set-resolver';
 
 const ydoc = new Y.Doc();
-const yroot = ydoc.getMap();
 
 new WebrtcProvider('demo-room4', ydoc);
 
@@ -30,11 +29,10 @@ const options: SyncOptions = {
         [ImmutableListResolver.TYPE_NAME]: ImmutableListResolver.INSTANCE,
         [ImmutableMapResolver.TYPE_NAME]: ImmutableMapResolver.INSTANCE,
         [ImmutableSetResolver.TYPE_NAME]: ImmutableSetResolver.INSTANCE,
-    },
-    strategy: 'IsEntity',
+    }
 };
 
-const binder = bind(yroot, 'tasks', options);
+const binder = bind(ydoc, 'tasks', options);
 
 export const store = configureStore({
     reducer: binder.enhanceReducer(combineReducers({
