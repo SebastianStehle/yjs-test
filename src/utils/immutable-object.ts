@@ -17,17 +17,9 @@ export abstract class ImmutableObject<T extends object> implements HasIdentity {
 
         Object.freeze(values);
     }
-    
-    public contains(key: string) {
-        return this.values.hasOwnProperty(key);
-    }
 
     public get<K extends keyof T>(key: K): T[K] {
         return this.values[key];
-    }
-
-    public [Symbol.iterator]() {
-        return Object.entries(this.values)[Symbol.iterator]();
     }
 
     public set<K extends keyof T>(key: K, value: T[K]): this {

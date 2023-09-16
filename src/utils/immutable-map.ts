@@ -12,7 +12,9 @@ type Mutator<T> = {
 };
 
 export class ImmutableMap<T> {
-    public readonly __typeName = 'Map';
+    public readonly __typeName = ImmutableMap.TYPE_NAME;
+
+    public static readonly TYPE_NAME = 'ImmutableMap';
 
     public get size() {
         return Object.keys(this.items).length;

@@ -14,9 +14,6 @@ export const TypeProperties = {
 
     // Used to identity the type name of previous files.
     typeName: '__typeName',
-
-    // To source value.
-    source: '__source',
 };
 
 export function isSameInstanceId(current: any, previous: any) {

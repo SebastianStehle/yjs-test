@@ -1,60 +1,63 @@
 /* eslint-disable no-prototype-builtins */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
 import * as Y from 'yjs';
 import { isSameInstanceId, TypeProperties } from './identity';
-import { ImmutableList } from './immutable-list';
-import { ImmutableMap } from './immutable-map';
-import { ImmutableObject } from './immutable-object';
-import { ImmutableSet } from './immutable-set';
-import { setSource } from './sync-utils';
+import { setSource } from './sync-internals';
+import { getTypeName, SyncOptions } from './sync-utils';
 import { Types } from './types';
 
-function valueToY(source: any) {
-    if (source instanceof ImmutableList) {
-        const items: any[] = [];
+function valueToY(source: any, options: SyncOptions) {
+    if (!source) {
+        return source;
+    }
+
+    const typeName = getTypeName(source);
+
+    if (!typeName) {
+        return source;
+    }
+
+    const typeResolver = options.typeResolvers[typeName];
+
+    if (!typeResolver) {
+        return source;
+    }
+
+    const resolved = typeResolver.syncToYJS(source);
+
+    if (Types.isObject(resolved)) {
+        const entries: { [key: string]: any } = {
+            [TypeProperties.typeName]: typeName
+        };
+
+        for (const [key, value] of source) {
+            entries[key] = valueToY(value, options);
+        }
+
+        const map = new Y.Map(Object.entries(entries));
+        setSource(map, source);
+
+        return map;
+    } else if (Types.isArray(resolved)) {
+        const items: any[] = [
+            { [TypeProperties.typeName]: typeName }
+        ];
 
         for (const item of source) {
-            items.push(valueToY(item));
+            items.push(valueToY(item, options));
         }
 
         const array = Y.Array.from(items);
         setSource(array, source);
 
         return array;
-    } else if (source instanceof ImmutableMap) {
-        const entries: { [key: string]: any } = {
-            [TypeProperties.typeName]: source.__typeName
-        };
-
-        for (const [key, value] of source) {
-            entries[key] = valueToY(value);
-        }
-
-        const map = new Y.Map(Object.entries(entries));
-        setSource(map, source);
-
-        return map;
-    } else if (source?.[TypeProperties.instanceId]) {
-        const entries: { [key: string]: any } = {
-            [TypeProperties.typeName]: source.__typeName
-        };
-
-        for (const [key, value] of (source as ImmutableObject<any>)) {
-            entries[key] = valueToY(value);
-        }
-
-        const map = new Y.Map(Object.entries(entries));
-        setSource(map, source);
-
-        return map;
-    } else if (Types.isFunction(source?.['toJS'])) {
-        return source['toJS']();
-    } else {
-        return source;
     }
+    
+    return source;
 }
 
-function syncImmutable(current: any, previous: any, target: unknown) {
+function diffValues(current: any, previous: any, target: any, options: SyncOptions) {
     if (!target) {
         return false;
     }
@@ -65,159 +68,116 @@ function syncImmutable(current: any, previous: any, target: unknown) {
     }
 
     if (Types.is(target, Y.Map)) {
-        const typeName = target.get(TypeProperties.typeName);
-
-        if (!typeName) {
-            return false;
-        }
-   
-        // Type names do not match.
-        if (current?.[TypeProperties.typeName] !== typeName || previous?.[TypeProperties.typeName] !== typeName) {
-            return false;
-        }
-
-        if (typeName === 'Map') {
-            syncMap(current, previous, target);
-            return true;
-        } else if (typeName === 'Set') {
-            syncSet(current, previous, target as any);
-            return true;
-        } else {
-            syncObject(current, previous, target);
-            return true;
-        }
+        diffObjects(current, previous, target, options);
     } else if (Types.is(target, Y.Array)) {
-        if (Types.is(current, ImmutableList) && Types.is(previous, ImmutableList)) {            
-            syncList(current, previous, target);
-        }
+        diffArrays(current, previous, target, options);
     }
     
     return false;
 }
 
-function syncList(current: ImmutableList<any>, previous: ImmutableList<any>, target: Y.Array<any>) {
-    setSource(target, current);
+function diffObjects(current: any, previous: any, target: Y.Map<any>, options: SyncOptions) {
+    const typeName = target.get(TypeProperties.typeName) as string;
 
-    const minSize = Math.min(current.length, previous.length);
+    if (!typeName) {
+        return false;
+    }
+
+    // Type names do not match.
+    if (getTypeName(current) !== typeName || getTypeName(previous) !== typeName) {
+        return false;
+    }
+
+    const typeResolver = options.typeResolvers[typeName];
+
+    if (!typeResolver || typeResolver.sourceType !== 'Object') {
+        return;
+    }
+    
+    const objCurrent = typeResolver.syncToYJS(current);
+    const objPrevious = typeResolver.syncToYJS(previous);
+
+    for (const [key, valueNew] of Object.entries(objCurrent)) {
+        if (!objPrevious.hasOwnProperty(key)) {
+            // The item has been added.
+            target.set(key, valueToY(valueNew, options));
+        }
+
+        const valuePrev = objPrevious[key];
+
+        // Nothing has been changed.
+        if (valueNew === valuePrev) {
+            continue;
+        }
+
+        if (diffValues(valueNew, valuePrev, target.get(key), options)) {
+            continue;
+        }
+
+        target.set(key, valueToY(valueNew, options));
+    }
+
+    for (const [key] of Object.keys(objPrevious)) {
+        if (!objCurrent.hasOwnProperty(key)) {
+            // The item has been removed.
+            target.delete(key);
+        }
+    }
+}
+
+function diffArrays(current: any, previous: any, target: Y.Array<any>, options: SyncOptions) {
+    const typeName = getTypeName(target.get(0)) as string;
+
+    if (!typeName) {
+        return false;
+    }
+
+    // Type names do not match.
+    if (getTypeName(current) !== typeName || getTypeName(previous) !== typeName) {
+        return false;
+    }
+
+    const typeResolver = options.typeResolvers[typeName];
+
+    if (!typeResolver || typeResolver.sourceType !== 'Array') {
+        return;
+    }
+    
+    const arrayCurrent = typeResolver.syncToYJS(current);
+    const arrayPrevious = typeResolver.syncToYJS(previous);
+
+    const minSize = Math.min(arrayCurrent.length, arrayPrevious.length);
 
     for (let i = 0; i < minSize; i++) {
-        const itemNew = current.get(i);
-        const itemPrev = previous.get(i);
+        const itemNew = arrayCurrent[i];
+        const itemPrev = arrayPrevious[i];
 
         // Nothing has been changed.
         if (itemNew === itemPrev) {
             continue;
         }
 
-        if (syncImmutable(itemNew, itemPrev, target.get(i))) {
+        if (diffValues(itemNew, itemPrev, target.get(i), options)) {
             continue;
         }
 
         target.delete(i);
-        target.insert(i, valueToY(itemNew));
+        target.insert(i, valueToY(itemNew, options));
     }
 
     if (current.length > previous.length) {
         for (let i = previous.length; i < current.length; i++) {
-            target.push(valueToY(current.get(i)));
+            target.push(valueToY(current.get(i), options));
         }
     } else {
         target.slice(current.length, previous.length - current.length);
     }
 }
 
-function syncSet(current: ImmutableSet, previous: ImmutableSet, target: Y.Map<boolean>) {
-    setSource(target, current);
-
-    for (const key of current) {
-        if (!previous.has(key)) {
-            // The item has been added.
-            target.set(key, true);
-        }
-    }
-
-    for (const key of Object.keys(previous)) {
-        if (!current.has(key)) {
-            // The item has been removed.
-            target.delete(key);
-        }
-    }
-}
-
-function syncMap(current: ImmutableMap<any>, previous: ImmutableMap<any>, target: Y.Map<unknown>) {
-    setSource(target, current);
-
-    for (const [key, valueNew] of current) {
-        if (!previous.has(key)) {
-            // The item has been added.
-            target.set(key, valueToY(valueNew));
-        }
-
-        const valuePrev = previous.get(key);
-
-        // Nothing has been changed.
-        if (valueNew === valuePrev) {
-            continue;
-        }
-
-        if (syncImmutable(valueNew, valuePrev, target.get(key))) {
-            continue;
-        }
-
-        target.set(key, valueToY(valueNew));
-    }
-
-    for (const [key] of previous) {
-        if (!current.has(key)) {
-            // The item has been removed.
-            target.delete(key);
-        }
-    }
-}
-
-function syncObject(current: ImmutableObject<any>, previous: ImmutableObject<any>, target: Y.Map<any>) {
-    setSource(target, current);
-    
-    for (const [key, valueNew] of current) {
-        if (!previous.contains(key)) {
-            // The item has been added.
-            target.set(key, valueToY(valueNew));
-        }
-
-        const valuePrev = previous.get(key);
-
-        // Nothing has been changed.
-        if (valueNew === valuePrev) {
-            continue;
-        }
-
-        if (syncImmutable(valueNew, valuePrev, target.get(key))) {
-            continue;
-        }
-
-        target.set(key, valueToY(valueNew));
-    }
-
-    for (const [key] of current) {
-        if (!current.contains(key)) {
-            // The item has been removed.
-            target.delete(key);
-        }
-    }
-}
-
-function syncInitial(current: ImmutableObject<any>, target: Y.Map<any>) {
-    setSource(target, current);
-    
-    for (const [key, valueNew] of current) {
-        target.set(key, valueToY(valueNew));
-    }
-}
-
-export function syncToY(current: ImmutableObject<any>, previous: ImmutableObject<any> | null, target: Y.Map<any>) {
+export function syncToY(current: any, previous: any, target: Y.AbstractType<any>, options: SyncOptions) {
     if (!previous) {
-        syncInitial(current, target);
+        return;
     } else {
-        syncObject(current, previous, target);
+        diffValues(current, previous, target, options);
     }
 }

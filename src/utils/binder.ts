@@ -2,13 +2,13 @@
 
 import * as Y from 'yjs';
 import { createAction, Middleware, Reducer } from '@reduxjs/toolkit';
-import { Factories } from './sync-utils';
 import { syncToY } from './sync-to-yjs';
 import { syncFromY } from './sync-from-yjs';
+import { SyncOptions } from './sync-utils';
 
 const syncAction = createAction<{ value: unknown; sliceName: string | undefined }>('SYNC_FROM_YJS');
 
-export function bind(rootObject: Y.Map<any>, sliceName: string | undefined, factories: Factories) {
+export function bind(rootObject: Y.Map<any>, sliceName: string | undefined, options: SyncOptions) {
     
     const middleware = () => {
         const middleware: Middleware = store => {
@@ -27,7 +27,7 @@ export function bind(rootObject: Y.Map<any>, sliceName: string | undefined, fact
                     return;
                 }
                 const stateOld = getState();
-                const stateNew = syncFromY<any>(stateOld, events, factories);
+                const stateNew = syncFromY<any>(stateOld, events, options);
 
                 if (stateOld !== stateNew) {
                     store.dispatch(syncAction({ value: stateNew, sliceName }));
@@ -35,7 +35,7 @@ export function bind(rootObject: Y.Map<any>, sliceName: string | undefined, fact
             });
     
             rootObject.doc!.transact(() => {
-                syncToY(getState(), null, rootObject);
+                syncToY(getState(), null, rootObject, options);
             });
     
             return next => action => {
@@ -45,7 +45,7 @@ export function bind(rootObject: Y.Map<any>, sliceName: string | undefined, fact
                 
                 if (!syncAction.match(action)) {
                     rootObject.doc!.transact(() => {
-                        syncToY(getState(), stateOld, rootObject);
+                        syncToY(getState(), stateOld, rootObject, options);
                     });
                 }
     
