@@ -14,10 +14,15 @@ export const TypeProperties = {
 
     // Used to identity the type name of previous files.
     typeName: '__typeName',
-
-    // To source value.
-    source: '__source',
 };
+
+export function getInstanceId(target: unknown) {
+    return (target as any)?.[TypeProperties.instanceId] as string | undefined | null;
+}
+
+export function getTypeName(target: unknown) {
+    return (target as any)?.[TypeProperties.typeName] as string | undefined | null;
+}
 
 export function isSameInstanceId(current: any, previous: any) {
     const currentId = current?.[TypeProperties.instanceId];

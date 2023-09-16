@@ -1,84 +1,56 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import * as Y from 'yjs';
-import { TypeProperties } from './identity';
-import { ImmutableList } from './immutable-list';
-import { ImmutableMap } from './immutable-map';
-import { ImmutableSet } from './immutable-set';
-import { Types } from './types';
+export type SyncOptions = {
+    // The type resolvers.
+    typeResolvers: Record<string, ObjectTypeResolver<unknown> | ArrayTypeResolver<unknown>>;
 
-export function setSource(target: Y.AbstractType<any>, source: any) {
-    (target as any)['__source'] = source;
-    (source as any)['__target'] = target;
+    // The value resolvers.
+    valueResolvers: Record<string, ValueResolver<unknown>>;
+
+    // True when all objects should be synced.
+    syncAlways?: boolean;
+};
+
+export type SyncStrategy = 'Always' | 'IsEntity';
+
+export type ArrayDiff = ArrayInsert | ArraySet | ArrayDeletion;
+
+export type ArrayBaseDiff = { index: number; };
+
+export type ArrayInsert = { type: 'Insert', value: unknown } & ArrayBaseDiff;
+
+export type ArraySet = { type: 'Set', value: unknown } & ArrayBaseDiff;
+
+export type ArrayDeletion = { type: 'Delete' } & ArrayBaseDiff;
+
+export type ObjectDiff = ObjectSet | ObjectRemove;
+
+export type ObjectBaseDiff = { key: string; };
+
+export type ObjectSet = { type: 'Set', value: unknown } & ObjectBaseDiff;
+
+export type ObjectRemove = { type: 'Remove' } & ObjectBaseDiff;
+
+export type SourceObject = Readonly<{ [key: string]: unknown }>;
+
+export type SourceArray = ReadonlyArray<unknown>;
+
+export interface TypeResolver<T, TSource, TDiff> {
+    create(source: TSource): T;
+
+    syncToYJS(value: T): TSource;
+
+    syncToObject(existing: T, diffs: TDiff[]): T;
 }
 
-export function setTarget(source: any, target: Y.AbstractType<any>) {
-    (target as any)['__source'] = source;
-    (source as any)['__target'] = target;
+export interface ObjectTypeResolver<T> extends TypeResolver<T, SourceObject, ObjectDiff> {
+    sourceType: 'Object';
 }
 
-export function getSource(target: Y.AbstractType<any>) {
-    return (target as any)?.['__source'];
+export interface ArrayTypeResolver<T> extends TypeResolver<T, SourceArray, ArrayDiff> {
+    sourceType: 'Array';
 }
 
-export function getTarget(target: Y.AbstractType<any>) {
-    return (target as any)?.['__target'];
-}
+export interface ValueResolver<T> {
+    fromYJS(source: SourceObject): T;
 
-export function setEvent(target: unknown, event: Y.YEvent<any>) {
-    (target as any)['__event'] = event;
-}
-
-export function getEvent(target: unknown): Y.YEvent<any> | undefined {
-    return (target as any)?.['__event'];
-}
-
-export function setInvalid(target: unknown, invalid = true) {
-    (target as any)['__invalid'] = invalid;
-}
-
-export function isInvalid(target: unknown) {
-    return (target as any)?.['__invalid'] === true;
-}
-
-export type Factory = (value: any) => any;
-
-export type Factories = { [key: string]: Factory };
-
-export function createInstance(source: any, factories: Factories) {
-    if (Types.is(source, Y.Map)) {
-        const values: Record<string, any> = {};
-
-        for (const [key, value] of source.entries()) {
-            if (key !== TypeProperties.typeName) {
-                values[key] = createInstance(value, factories);
-            }
-        }
-
-        const typeName = source.get(TypeProperties.typeName) as string;
-
-        if (!typeName) {
-            return values;
-        }
-
-        let result: any;
-        if (typeName === 'Map') {
-            result = ImmutableMap.of(values);
-        } else if (typeName === 'Set') {
-            result = ImmutableSet.of(...Object.keys(values));
-        } else {
-            result = factories[typeName](values);
-        }
-
-        setSource(source, result);
-        return result;
-    } else if (Types.is(source, Y.Array)) {
-        const values: any[] = source.map(i => createInstance(i, factories));
-
-        const result = ImmutableList.of(values);
-
-        setSource(source, result);
-        return result;
-    }
-
-    return source;
+    fromValue(source: T): Record<string, unknown>;
 }

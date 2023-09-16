@@ -15,7 +15,9 @@ type Mutator<T> = {
 };
 
 export class ImmutableList<T> {
-    public readonly __typeName = 'List';
+    public readonly __typeName = ImmutableList.TYPE_NAME;
+
+    public static readonly TYPE_NAME = 'ImmutableList';
 
     public get length() {
         return this.items.length;

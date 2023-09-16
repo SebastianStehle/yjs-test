@@ -2,14 +2,13 @@
 
 import * as Y from 'yjs';
 import { createAction, Middleware, Reducer } from '@reduxjs/toolkit';
-import { Factories } from './sync-utils';
-import { syncToY } from './sync-to-yjs';
-import { syncFromY } from './sync-from-yjs';
+import { initToYJS, syncToYJS } from './sync-to-yjs';
+import { syncFromYJS } from './sync-from-yjs';
+import { SyncOptions } from './sync-utils';
 
 const syncAction = createAction<{ value: unknown; sliceName: string | undefined }>('SYNC_FROM_YJS');
 
-export function bind(rootObject: Y.Map<any>, sliceName: string | undefined, factories: Factories) {
-    
+export function bind(doc: Y.Doc, sliceName: string | undefined, options: SyncOptions) {
     const middleware = () => {
         const middleware: Middleware = store => {
             const getState = () => {
@@ -22,20 +21,22 @@ export function bind(rootObject: Y.Map<any>, sliceName: string | undefined, fact
                 return state;
             };
 
-            rootObject.observeDeep((events, transition) => {
+            let root: Y.AbstractType<any>;
+            doc.transact(() => {
+                root = initToYJS(getState(), doc, sliceName, options);
+            });
+
+            root!.observeDeep((events, transition) => {
                 if (transition.local) {
                     return;
                 }
+
                 const stateOld = getState();
-                const stateNew = syncFromY<any>(stateOld, events, factories);
+                const stateNew = syncFromYJS<any>(stateOld, events, options);
 
                 if (stateOld !== stateNew) {
                     store.dispatch(syncAction({ value: stateNew, sliceName }));
                 }   
-            });
-    
-            rootObject.doc!.transact(() => {
-                syncToY(getState(), null, rootObject);
             });
     
             return next => action => {
@@ -44,8 +45,8 @@ export function bind(rootObject: Y.Map<any>, sliceName: string | undefined, fact
                 const result = next(action);
                 
                 if (!syncAction.match(action)) {
-                    rootObject.doc!.transact(() => {
-                        syncToY(getState(), stateOld, rootObject);
+                    doc.transact(() => {
+                        syncToYJS(getState(), stateOld, root, options);
                     });
                 }
     

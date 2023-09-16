@@ -9,7 +9,9 @@ type Mutator = {
 };
 
 export class ImmutableSet {
-    public readonly __typeName = 'Set';
+    public readonly __typeName = ImmutableSet.TYPE_NAME;
+
+    public static readonly TYPE_NAME = 'ImmutableSet';
 
     public get length() {
         return Object.keys(this.items).length;
@@ -17,6 +19,10 @@ export class ImmutableSet {
 
     public [Symbol.iterator]() {
         return Object.keys(this.items)[Symbol.iterator]();
+    }
+
+    public get raw() {
+        return this.items;
     }
 
     public has(item: string) {

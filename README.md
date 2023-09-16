@@ -2,19 +2,38 @@
 
 This application demonstrates how to sync deep immutable objects to YJS.
 
-It makes the following assumptions:
+It has the following requirements:
 
-1. Two objects are the same, when the instance ID (`__instanceId`) property has the same value. This is used to distinguish between updates of an object and a complete replacement. When an object is replaced a new `Y.Map` is created. Otherwise the existing map is updated.
-2. The redux state is built in a class based approach. This is inherited from an existing project but does not limit the general approach. We use the following classes: 
+1. Make only the necessary changes.
+2. Keep redux instances intact if nothing has been changed.
+3. Support custom domain object classes.
+4. Support custom collections.
+5. Support custom value types (e.g. Color, Vector and so on).
 
-   * `ImmutableObject` as base class for all entities.
-   * `ImmutableMap`
-   * `ImmutableList`
-   * `ImmutableSet`
+We differentiate between 4 types of values and handle them differently.
 
-   We assume that whenever one of these classes is used, we want to create an new yjs structure (either `Y.Map` or `Y.Array`). Therefore when you just use an array or object as a property value it is handled as atomic value. This potentially reduces the complexity or the yjs structure.
+### Custom classes
 
-3. We also have classes in our state, for example special structures like `Vector` or `Transformation` are used in one of my project. To serialize them we support a `toJS` function and factories.
+Custom classes must have an `__typeName` property. This property is used similar to reflection in other programming languages to preserve the type information. When such an object is found we try to find the type resolver that converts the object to a serialize format and deserializes to the original type. These classes must also provide the `__instanceId` property to distinguish whether a value has been updated by redux or replaced by a new entity. Depending on this behavior we either update the changed properties or create a new yjs type.
+
+For testing purposed we ported several classes from another project:
+
+* `ImmutableObject` as base class for all entities.
+* `ImmutableMap`
+* `ImmutableList`
+* `ImmutableSet`
+
+### Value types
+
+Value types (for example something like Color, Matrix, Vector) are usually immutable and never updated. Therefore we do not create a yjs type for them because updates are always atomic. Value types are usually custom classes that also have an `__typeName` property, but have a registered value resolver, that converts from and to object.
+
+### Array and objects
+
+Depending on the options, we also convert array and objects to either `Y.Array` or `Y.Map`. We do not make identity changes and just make an update of the yjs type if the old and the new value are bother either array or objects.
+
+### Primitives
+
+Primitives like string and number are handled by yjs, so there is nothing to do from our side.
 
 ## Sync from Redux to YJS
 

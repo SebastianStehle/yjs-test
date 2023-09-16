@@ -4,27 +4,36 @@ import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import { Root, TaskItem, TaskList } from './state';
 import tasksReducer from './reducer';
-import { Factories } from '../utils/sync-utils';
 import { bind } from '../utils/binder';
+import { SyncOptions } from '../utils/sync-utils';
+import ImmutableObjectResolver from '../utils/immutable-object-resolver';
+import ImmutableListResolver from '../utils/immutable-list-resolver';
+import ImmutableMapResolver from '../utils/immutable-map-resolver';
+import ImmutableSetResolver from '../utils/immutable-set-resolver';
 
 const ydoc = new Y.Doc();
-const yroot = ydoc.getMap();
 
 new WebrtcProvider('demo-room4', ydoc);
 
-const factories: Factories = {
-    Root: values => {
-        return new Root(values);
+const options: SyncOptions = {
+    typeResolvers: {
+        Root: ImmutableObjectResolver.create<Root>(values => {
+            return new Root(values as any);
+        }),
+        TaskList: ImmutableObjectResolver.create<TaskList>(values => {
+            return new TaskList(values as any);
+        }),
+        TaskItem: ImmutableObjectResolver.create<TaskItem>(values => {
+            return new TaskItem(values as any);
+        }),
+        [ImmutableListResolver.TYPE_NAME]: ImmutableListResolver.INSTANCE,
+        [ImmutableMapResolver.TYPE_NAME]: ImmutableMapResolver.INSTANCE,
+        [ImmutableSetResolver.TYPE_NAME]: ImmutableSetResolver.INSTANCE,
     },
-    TaskList: values => {
-        return new TaskList(values);
-    },
-    TaskItem: values => {
-        return new TaskItem(values);
-    }
+    valueResolvers: {}
 };
 
-const binder = bind(yroot, 'tasks', factories);
+const binder = bind(ydoc, 'tasks', options);
 
 export const store = configureStore({
     reducer: binder.enhanceReducer(combineReducers({
