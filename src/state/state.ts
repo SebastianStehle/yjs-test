@@ -125,8 +125,7 @@ export class ColorValueResolver implements ValueResolver<Color> {
         return new Color(source['value'] as string);
     }
 
-    fromValue(source: Color): Readonly<{ [key: string]: unknown; }> {
+    public fromValue(source: Color): Readonly<{ [key: string]: unknown; }> {
         return { value: source.value };
     }
-
 }

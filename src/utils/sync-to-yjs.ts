@@ -34,7 +34,7 @@ function valueToY(source: any, options: SyncOptions, doc?: Y.Doc, sliceName?: st
         const result = valueResolver.fromValue(source);
 
         // Also set the type name so that we can read from it.
-        result[TypeProperties.typeName] = source;
+        result[TypeProperties.typeName] = typeName;
         return result;
     }
 
@@ -87,13 +87,8 @@ function valueToYArray(source: any, values: SourceArray, initial: any[], options
         array = new Y.Array();
     }
 
-    for (const value of initial) {
-        array.push(value);
-    }
-
-    for (const value of values) {
-        array.push(valueToY(value, options));
-    }
+    array.push(initial);
+    array.push(values.map(v => valueToY(v, options)));
 
     setSource(array, source);
     return array;
@@ -153,6 +148,7 @@ function diffObjectsCore(current: SourceObject, previous: SourceObject, target: 
         if (!previous.hasOwnProperty(key)) {
             // The item has been added.
             target.set(key, valueToY(valueNew, options));
+            continue;
         }
 
         const valuePrev = previous[key];
@@ -229,15 +225,19 @@ function diffArraysCore(current: SourceArray, previous: SourceArray, target: Y.A
         }
 
         target.delete(i);
-        target.insert(i, valueToY(itemNew, options));
+        target.insert(i, [valueToY(itemNew, options)]);
     }
 
     if (current.length > previous.length) {
+        const items: any[] = [];
+    
         for (let i = previous.length; i < current.length; i++) {
-            target.push(valueToY(current[i], options));
+            items.push(valueToY(current[i], options));
         }
+
+        target.push(items);
     } else {
-        target.slice(current.length, previous.length - current.length);
+        target.delete(current.length, previous.length - current.length);
     }
 }
 

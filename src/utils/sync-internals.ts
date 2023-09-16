@@ -49,7 +49,7 @@ export function yjsToValue(source: any, options: SyncOptions) {
         const valueResolver = options.valueResolvers[typeName];
     
         if (!valueResolver) {
-            throw new Error(`Cannot find type resolver for '${typeName}.`);
+            throw new Error(`Cannot find value resolver for '${typeName}.`);
         }
 
         // Delete the type name, because it was not part of the object that has been created when syncing to yjs.
