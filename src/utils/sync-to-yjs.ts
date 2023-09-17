@@ -2,12 +2,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as Y from 'yjs';
+import { calculateArrayDiffs, calculateObjectDiffs } from './diffs';
 import { getTypeName, isSameInstanceId, TypeProperties } from './identity';
 import { setSource } from './sync-internals';
 import { SourceArray, SourceObject, SyncOptions } from './sync-utils';
 import { Types } from './types';
 
-function valueToY(source: any, options: SyncOptions, doc?: Y.Doc, sliceName?: string) {
+function valueToYJS(source: any, options: SyncOptions, doc?: Y.Doc, sliceName?: string) {
     if (!source) {
         return source;
     }
@@ -17,11 +18,11 @@ function valueToY(source: any, options: SyncOptions, doc?: Y.Doc, sliceName?: st
     if (!typeName) {
         if (options.syncAlways) {
             if (Types.isArray(source)) {
-                return valueToYArray(source, source, [], options, doc, sliceName);
+                return valueToYJSArray(source, source, [], options, doc, sliceName);
             }
             
             if (Types.isObject(source)) {
-                return valueToYObject(source, source, {}, options, doc, sliceName);
+                return valueToYJSObject(source, source, {}, options, doc, sliceName);
             }
         }
 
@@ -41,7 +42,7 @@ function valueToY(source: any, options: SyncOptions, doc?: Y.Doc, sliceName?: st
     const typeResolver = options.typeResolvers[typeName];
 
     if (!typeResolver) {
-        throw new Error(`Cannot find type resolver for '${typeName}.`);
+        throw new Error(`Cannot find type resolver for '${typeName}'.`);
     }
 
     if (typeResolver.sourceType === 'Object') {
@@ -49,17 +50,17 @@ function valueToY(source: any, options: SyncOptions, doc?: Y.Doc, sliceName?: st
             [TypeProperties.typeName]: typeName
         };
         
-        return valueToYObject(source, typeResolver.syncToYJS(source), initial, options, doc);
+        return valueToYJSObject(source, typeResolver.syncToYJS(source), initial, options, doc);
     } else {
         const initial: any[] = [
             { [TypeProperties.typeName]: typeName }
         ];
         
-        return valueToYArray(source, typeResolver.syncToYJS(source), initial, options, doc);
+        return valueToYJSArray(source, typeResolver.syncToYJS(source), initial, options, doc);
     }
 }
 
-function valueToYObject(source: any, values: SourceObject, initial: Record<string, object>, options: SyncOptions, doc?: Y.Doc, sliceName?: string) {
+function valueToYJSObject(source: any, values: SourceObject, initial: Record<string, object>, options: SyncOptions, doc?: Y.Doc, sliceName?: string) {
     let map: Y.Map<unknown>;
     if (doc) {
         map = doc.getMap(sliceName);
@@ -72,14 +73,14 @@ function valueToYObject(source: any, values: SourceObject, initial: Record<strin
     }
 
     for (const [key, value] of Object.entries(values)) {
-        map.set(key, valueToY(value, options));
+        map.set(key, valueToYJS(value, options));
     }
 
     setSource(map, source);
     return map;
 }
 
-function valueToYArray(source: any, values: SourceArray, initial: any[], options: SyncOptions, doc?: Y.Doc, sliceName?: string) {
+function valueToYJSArray(source: any, values: SourceArray, initial: any[], options: SyncOptions, doc?: Y.Doc, sliceName?: string) {
     let array: Y.Array<unknown>;
     if (doc) {
         array = doc.getArray(sliceName);
@@ -88,7 +89,7 @@ function valueToYArray(source: any, values: SourceArray, initial: any[], options
     }
 
     array.push(initial);
-    array.push(values.map(v => valueToY(v, options)));
+    array.push(values.map(v => valueToYJS(v, options)));
 
     setSource(array, source);
     return array;
@@ -133,7 +134,7 @@ function diffObjects(current: any, previous: any, target: Y.Map<any>, options: S
     const typeResolver = options.typeResolvers[typeName];
 
     if (!typeResolver || typeResolver.sourceType !== 'Object') {
-        throw new Error(`Cannot find type resolver for '${typeName}.`);
+        throw new Error(`Cannot find type resolver for '${typeName}'.`);
     }
     
     const objCurrent = typeResolver.syncToYJS(current);
@@ -144,31 +145,17 @@ function diffObjects(current: any, previous: any, target: Y.Map<any>, options: S
 }
 
 function diffObjectsCore(current: SourceObject, previous: SourceObject, target: Y.Map<any>, options: SyncOptions) {
-    for (const [key, valueNew] of Object.entries(current)) {
-        if (!previous.hasOwnProperty(key)) {
-            // The item has been added.
-            target.set(key, valueToY(valueNew, options));
-            continue;
-        }
+    const diffs = calculateObjectDiffs(current, previous);
 
-        const valuePrev = previous[key];
+    for (const diff of diffs) {
+        const key = diff.key;
 
-        // Nothing has been changed.
-        if (valueNew === valuePrev) {
-            continue;
-        }
-
-        if (diffValues(valueNew, valuePrev, target.get(key), options)) {
-            continue;
-        }
-
-        target.set(key, valueToY(valueNew, options));
-    }
-
-    for (const key of Object.keys(previous)) {
-        if (!current.hasOwnProperty(key)) {
-            // The item has been removed.
+        if (diff.type === 'Remove') {
             target.delete(key);
+        } else if (diff.type === 'Add') {
+            target.set(key, valueToYJS(diff.value, options));
+        } else if (!diffValues(diff.value, diff.oldValue, target.get(diff.key), options)) {
+            target.set(key, valueToYJS(diff.value, options));
         }
     }
 }
@@ -178,7 +165,7 @@ function diffArrays(current: any, previous: any, target: Y.Array<any>, options: 
 
     if (!typeName) {
         if (options.syncAlways && Types.isArray(current) && Types.isArray(previous)) {
-            diffArraysCore(current, previous, target, options);
+            diffArraysCore(current, previous, target, 0, options);
             return true;
         }
 
@@ -198,46 +185,30 @@ function diffArrays(current: any, previous: any, target: Y.Array<any>, options: 
     const typeResolver = options.typeResolvers[typeName];
 
     if (!typeResolver || typeResolver.sourceType !== 'Array') {
-        throw new Error(`Cannot find type resolver for '${typeName}.`);
+        throw new Error(`Cannot find type resolver for '${typeName}'.`);
     }
     
     const arrayCurrent = typeResolver.syncToYJS(current);
     const arrayPrevious = typeResolver.syncToYJS(previous);
 
-    diffArraysCore(arrayCurrent, arrayPrevious, target, options);
+    diffArraysCore(arrayCurrent, arrayPrevious, target, 1, options);
     return true;
 }
 
-function diffArraysCore(current: SourceArray, previous: SourceArray, target: Y.Array<any>, options: SyncOptions) {
-    const minSize = Math.min(current.length, previous.length);
+function diffArraysCore(current: SourceArray, previous: SourceArray, target: Y.Array<any>, indexOffset: number, options: SyncOptions) {
+    const diffs = calculateArrayDiffs(current, previous);
 
-    for (let i = 0; i < minSize; i++) {
-        const itemNew = current[i];
-        const itemPrev = previous[i];
-
-        // Nothing has been changed.
-        if (itemNew === itemPrev) {
-            continue;
-        }
-
-        if (diffValues(itemNew, itemPrev, target.get(i), options)) {
-            continue;
-        }
-
-        target.delete(i);
-        target.insert(i, [valueToY(itemNew, options)]);
-    }
-
-    if (current.length > previous.length) {
-        const items: any[] = [];
+    for (const diff of diffs) {
+        const index = diff.index;
     
-        for (let i = previous.length; i < current.length; i++) {
-            items.push(valueToY(current[i], options));
+        if (diff.type === 'Remove') {
+            target.delete(index, diff.count);
+        } else if (diff.type === 'Insert') {
+            target.insert(index, diff.values.map(v => valueToYJS(v, options)));
+        } else if (!diffValues(diff.value, diff.oldValue, target.get(diff.oldIndex + indexOffset), options)) {
+            target.delete(index, 1);
+            target.insert(index, [valueToYJS(diff.value, options)]);
         }
-
-        target.push(items);
-    } else {
-        target.delete(current.length, previous.length - current.length);
     }
 }
 
@@ -246,7 +217,7 @@ export function syncToYJS(current: any, previous: any, target: Y.AbstractType<an
 }
 
 export function initToYJS(current: any, doc: Y.Doc, sliceName: string | undefined, options: SyncOptions) {
-    const result = valueToY(current, options, doc, sliceName);
+    const result = valueToYJS(current, options, doc, sliceName);
 
     if (!(result instanceof Y.Array) && !(result instanceof Y.Map)) {
         throw new Error('Root object must map to a yjs object.');

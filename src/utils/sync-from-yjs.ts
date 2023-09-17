@@ -28,7 +28,7 @@ function syncValue(source: any, options: SyncOptions) {
     const typeResolver = options.typeResolvers[typeName];
 
     if (!typeResolver) {
-        throw new Error(`Cannot find type resolver for '${typeName}.`);
+        throw new Error(`Cannot find type resolver for '${typeName}'.`);
     }
 
     if (typeResolver.sourceType === 'Object') {
@@ -163,7 +163,6 @@ function syncArray(source: ReadonlyArray<unknown>, event: Y.YEvent<any> | undefi
             if (deletion) {
                 result ||= [...source];
                 result.splice(index, deletion);
-                index -= deletion;
             }
         });
     }
@@ -177,7 +176,7 @@ function syncTypedArray(source: any, event: Y.YEvent<any> | undefined, typeResol
     const sourceValue = typeResolver.syncToYJS(source);
 
     // Because of immutability we have to check if there is a change down the path.
-    for (let i = 0; i < source.length; i++) {
+    for (let i = 0; i < sourceValue.length; i++) {
         const itemOld = sourceValue[i];
         const itemNew = syncValue(itemOld, options);
 
@@ -214,7 +213,6 @@ function syncTypedArray(source: any, event: Y.YEvent<any> | undefined, typeResol
         
                 for (let i = 0; i < deletion; i++) {
                     diffs.push({ type: 'Delete', index });
-                    index--;
                 }
             }
         });
