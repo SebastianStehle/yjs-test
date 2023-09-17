@@ -21,14 +21,14 @@ function syncValue(source: any, options: SyncOptions) {
             result = syncArray(source, getEvent(source), options);
         }
 
-        return source;
+        return result;
     }
 
 
     const typeResolver = options.typeResolvers[typeName];
 
     if (!typeResolver) {
-        throw new Error(`Cannot find type resolver for '${typeName}.`);
+        throw new Error(`Cannot find type resolver for '${typeName}'.`);
     }
 
     if (typeResolver.sourceType === 'Object') {
@@ -148,20 +148,21 @@ function syncArray(source: ReadonlyArray<unknown>, event: Y.YEvent<any> | undefi
             throw new Error('Cannot sync from invalid target.');
         }
 
-        event.changes.keys.forEach((change, key) => {
-            const index = parseInt(key, 10) + 1;
-    
-            result ||= [...source];
-            switch (change.action) {
-                case 'add':
-                    result!.splice(index, 1, yjsToValue(target.get(index), options));
-                    break;
-                case 'update':
-                    result![index] = yjsToValue(target.get(index), options);
-                    break;
-                case 'delete':
-                    result!.splice(index, 1);
-                    break;
+        let index = 0;
+        event.changes.delta.map(({ retain, insert, delete: deletion }) => {
+            if (retain) {
+                index += retain;
+            }
+
+            if (insert && Types.isArray(insert)) {
+                result ||= [...source];
+                result.splice(index, 0, ...insert.map(x => yjsToValue(x, options)));
+                index += insert.length;
+            }
+
+            if (deletion) {
+                result ||= [...source];
+                result.splice(index, deletion);
             }
         });
     }
@@ -175,7 +176,7 @@ function syncTypedArray(source: any, event: Y.YEvent<any> | undefined, typeResol
     const sourceValue = typeResolver.syncToYJS(source);
 
     // Because of immutability we have to check if there is a change down the path.
-    for (let i = 0; i < source.length; i++) {
+    for (let i = 0; i < sourceValue.length; i++) {
         const itemOld = sourceValue[i];
         const itemNew = syncValue(itemOld, options);
 
@@ -192,20 +193,27 @@ function syncTypedArray(source: any, event: Y.YEvent<any> | undefined, typeResol
             throw new Error('Cannot sync from invalid target.');
         }
 
-        event.changes.keys.forEach((change, key) => {
-            const index = parseInt(key, 10) + 1;
-    
-            diffs ||= [];
-            switch (change.action) {
-                case 'add':
-                    diffs.push({ type: 'Insert', index, value: yjsToValue(target.get(index), options) });
-                    break;
-                case 'update':
-                    diffs.push({ type: 'Set', index, value: yjsToValue(target.get(index), options) });
-                    break;
-                case 'delete':
+        let index = 0;
+        event.changes.delta.map(({ retain, insert, delete: deletion }) => {
+            if (retain) {
+                index += retain;
+            }
+
+            if (insert && Types.isArray(insert)) {
+                diffs ||= [];
+
+                for (const item of insert) {
+                    diffs.push({ type: 'Insert', index, value: yjsToValue(item, options) });
+                    index++;
+                }
+            }
+
+            if (deletion) {
+                diffs ||= [];
+        
+                for (let i = 0; i < deletion; i++) {
                     diffs.push({ type: 'Delete', index });
-                    break;
+                }
             }
         });
     }

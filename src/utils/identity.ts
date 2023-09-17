@@ -16,12 +16,14 @@ export const TypeProperties = {
     typeName: '__typeName',
 };
 
+type TypeInfo = string | undefined | null;
+
 export function getInstanceId(target: unknown) {
-    return (target as any)?.[TypeProperties.instanceId] as string | undefined | null;
+    return (target as any)?.[TypeProperties.instanceId] as TypeInfo;
 }
 
 export function getTypeName(target: unknown) {
-    return (target as any)?.[TypeProperties.typeName] as string | undefined | null;
+    return (target as any)?.[TypeProperties.typeName] as TypeInfo;
 }
 
 export function isSameInstanceId(current: any, previous: any) {

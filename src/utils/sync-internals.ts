@@ -49,7 +49,7 @@ export function yjsToValue(source: any, options: SyncOptions) {
         const valueResolver = options.valueResolvers[typeName];
     
         if (!valueResolver) {
-            throw new Error(`Cannot find type resolver for '${typeName}.`);
+            throw new Error(`Cannot find value resolver for '${typeName}'.`);
         }
 
         // Delete the type name, because it was not part of the object that has been created when syncing to yjs.
@@ -65,28 +65,27 @@ function createFromMap(source: Y.Map<any>, options: SyncOptions) {
     const typeName = source.get(TypeProperties.typeName) as string;
 
     if (!typeName && options.syncAlways) {
-        return createFromMapCore(source, options);
+        return createFromMapCore(source, null, options);
     }
     
     const typeResolver = options.typeResolvers[typeName];
     
     if (!typeResolver || typeResolver.sourceType !== 'Object') {
-        throw new Error(`Cannot find type resolver for '${typeName}.`);
+        throw new Error(`Cannot find type resolver for '${typeName}'.`);
     }
 
-    const values = createFromMapCore(source, options);
-
-    // We do not need the type properties because the type resolver has this information already.
-    delete values[TypeProperties.typeName];
+    const values = createFromMapCore(source, TypeProperties.typeName, options);
 
     return typeResolver.create(values);
 }
 
-function createFromMapCore(source: Y.Map<any>, options: SyncOptions) {
+function createFromMapCore(source: Y.Map<any>, skipKey: string | null, options: SyncOptions) {
     const values: Record<string, any> = {};
 
     for (const [key, value] of source.entries()) {            
-        values[key] = yjsToValue(value, options);
+        if (key !== skipKey) {
+            values[key] = yjsToValue(value, options);
+        }
     }
 
     return values;
@@ -96,29 +95,28 @@ function createFromArray(source: Y.Array<any>, options: SyncOptions): any {
     const typeName = getTypeName(source.get(0));
 
     if (!typeName) {
-        return createFromArray(source, options);
+        return createFromArrayCore(source, -1, options);
     }
     
     const typeResolver = options.typeResolvers[typeName];
     
     if (!typeResolver || typeResolver.sourceType !== 'Array') {
-        throw new Error(`Cannot find type resolver for '${typeName}.`);
+        throw new Error(`Cannot find type resolver for '${typeName}'.`);
     }
 
-    const values = createFromArrayCore(source, options);
-
-    // We do not need the type properties because the type resolver has this information already.
-    values.splice(0, 1);
+    const values = createFromArrayCore(source, 0, options);
 
     return typeResolver.create(values);
 }
 
-function createFromArrayCore(source: Y.Array<any>, options: SyncOptions) {
+function createFromArrayCore(source: Y.Array<any>, skipIndex: number, options: SyncOptions) {
     const values: any[] = [];
 
-    for (const value of source) {         
-        values.push(yjsToValue(value, options));
-    }
+    for (let i = 0; i < source.length; i++) {
+        if (i !== skipIndex) {
+            values.push(yjsToValue(source.get(i), options));
+        }
+    } 
 
     return values;
 }
