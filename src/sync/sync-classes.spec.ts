@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, test } from 'vitest';
-import { idGenerator, TypeProperties } from './identity';
-import { syncToYJS } from './sync-to-yjs';
-import { ArrayDiff, ArrayTypeResolver, ObjectDiff, ObjectTypeResolver, SourceArray, SourceObject, SyncOptions } from './sync-utils';
+import { idGenerator, Types } from './../utils';
+import { ArrayDiff, ArrayTypeResolver, ObjectDiff, ObjectTypeResolver, SourceArray, SourceObject, SyncOptions, syncToYJS, TypeProperties } from './';
 import { testInitialSync } from './test-utils';
-import { Types } from './types';
 
 class ImmutableArray<T> {
     public readonly __typeName = ImmutableArray.TYPE_NAME;

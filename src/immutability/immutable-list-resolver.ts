@@ -1,13 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ImmutableList } from "./immutable-list";
-import { ArrayDiff, ArrayTypeResolver, SourceArray } from "./sync-utils";
+import { ArrayDiff, ArrayTypeResolver, SourceArray } from "./../sync";
 
 export default class ImmutableListResolver implements ArrayTypeResolver<ImmutableList<unknown>> {
     public readonly sourceType = 'Array';
 
     public static readonly INSTANCE = new ImmutableListResolver();
-
-    public static readonly TYPE_NAME = ImmutableList.TYPE_NAME;
 
     private constructor() {
     }

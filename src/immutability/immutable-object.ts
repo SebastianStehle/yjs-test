@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-prototype-builtins */
-import { HasIdentity, idGenerator, TypeProperties } from "./identity";
-import { Types } from "./types";
+import { idGenerator, Types } from './../utils';
 
-export abstract class ImmutableObject<T extends object> implements HasIdentity {
+export abstract class ImmutableObject<T extends object> {
     private readonly values: T;
 
     public readonly __instanceId: string;
@@ -11,7 +10,7 @@ export abstract class ImmutableObject<T extends object> implements HasIdentity {
     constructor(values: T,
         public readonly __typeName: string, id?: string,
     ){
-        this.__instanceId = id || (values as any)[TypeProperties.instanceId] || idGenerator();
+        this.__instanceId = id || (values as any)['__instanceId'] || idGenerator();
         this.values = values;
         this.values = this.afterClone(this.values);
 

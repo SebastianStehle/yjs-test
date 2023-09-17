@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { moveItems } from './collections';
-import { idGenerator } from './identity';
-import { Types } from './types';
+import { idGenerator, Types } from './../utils';
 
 type Mutator<T> = {
     push: (item: T) => void;

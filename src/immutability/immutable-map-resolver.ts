@@ -1,13 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ImmutableMap } from "./immutable-map";
-import { ObjectDiff, ObjectTypeResolver, SourceObject } from "./sync-utils";
+import { ObjectDiff, ObjectTypeResolver, SourceObject } from "./../sync";
 
 export default class ImmutableMapResolver implements ObjectTypeResolver<ImmutableMap<unknown>> {
     public readonly sourceType = 'Object';
 
     public static readonly INSTANCE = new ImmutableMapResolver();
-
-    public static readonly TYPE_NAME = ImmutableMap.TYPE_NAME;
 
     private constructor() {
     }

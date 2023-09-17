@@ -1,7 +1,5 @@
-import { ImmutableMap } from "../utils/immutable-map";
-import { ImmutableObject } from "../utils/immutable-object";
-import { SourceObject, ValueResolver } from "../utils/sync-utils";
-
+import { ImmutableMap, ImmutableObject } from "./../immutability";
+import { SourceObject, ValueResolver } from "./../sync";
 
 interface RootProps {
     lists: ImmutableMap<TaskList>;

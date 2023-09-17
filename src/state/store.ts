@@ -4,12 +4,12 @@ import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import { Root, TaskItem, TaskList } from './state';
 import tasksReducer from './reducer';
-import { bind } from '../utils/binder';
-import { SyncOptions } from '../utils/sync-utils';
-import ImmutableObjectResolver from '../utils/immutable-object-resolver';
-import ImmutableListResolver from '../utils/immutable-list-resolver';
-import ImmutableMapResolver from '../utils/immutable-map-resolver';
-import ImmutableSetResolver from '../utils/immutable-set-resolver';
+import { bind, SyncOptions } from '../sync';
+import { ImmutableList, ImmutableMap, ImmutableSet } from '../immutability';
+import ImmutableObjectResolver from '../immutability/immutable-object-resolver';
+import ImmutableListResolver from '../immutability/immutable-list-resolver';
+import ImmutableMapResolver from '../immutability/immutable-map-resolver';
+import ImmutableSetResolver from '../immutability/immutable-set-resolver';
 
 const ydoc = new Y.Doc();
 
@@ -26,9 +26,9 @@ const options: SyncOptions = {
         TaskItem: ImmutableObjectResolver.create<TaskItem>(values => {
             return new TaskItem(values as any);
         }),
-        [ImmutableListResolver.TYPE_NAME]: ImmutableListResolver.INSTANCE,
-        [ImmutableMapResolver.TYPE_NAME]: ImmutableMapResolver.INSTANCE,
-        [ImmutableSetResolver.TYPE_NAME]: ImmutableSetResolver.INSTANCE,
+        [ImmutableList.TYPE_NAME]: ImmutableListResolver.INSTANCE,
+        [ImmutableMap.TYPE_NAME]: ImmutableMapResolver.INSTANCE,
+        [ImmutableSet.TYPE_NAME]: ImmutableSetResolver.INSTANCE,
     },
     valueResolvers: {}
 };
