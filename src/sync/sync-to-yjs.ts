@@ -6,7 +6,7 @@ import { calculateArrayDiffs, calculateObjectDiffs } from './diffs';
 import { getTypeName, isSameInstanceId, TypeProperties } from './identity';
 import { setSource } from './sync-internals';
 import { SourceArray, SourceObject, SyncOptions } from './sync-utils';
-import { Types } from './types';
+import { Types } from './../utils';
 
 function valueToYJS(source: any, options: SyncOptions, doc?: Y.Doc, sliceName?: string) {
     if (!source) {

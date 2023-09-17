@@ -3,16 +3,16 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 
 export module Types {
+    export function isArray(value: any): value is ReadonlyArray<any> {
+        return Array.isArray(value);
+    }
+
     export function isString(value: any): value is string {
         return typeof value === 'string' || value instanceof String;
     }
 
     export function isNumber(value: any): value is number {
         return typeof value === 'number' && Number.isFinite(value);
-    }
-
-    export function isArray(value: any): value is ReadonlyArray<any> {
-        return Array.isArray(value);
     }
 
     export function isFunction(value: any): value is Function {
@@ -27,16 +27,16 @@ export module Types {
         return typeof value === 'boolean';
     }
 
-    export function isNull(value: any): value is null {
-        return value === null;
-    }
-
     export function isUndefined(value: any): value is undefined {
         return typeof value === 'undefined';
     }
 
     export function isRegExp(value: any): value is RegExp {
         return value && typeof value === 'object' && value.constructor === RegExp;
+    }
+
+    export function isNull(value: any): value is null {
+        return value === null;
     }
 
     export function isDate(value: any): value is Date {
@@ -141,11 +141,3 @@ export module Types {
 }
 
 type EqualsOptions = { lazyString?: boolean };
-
-export function without<T>(obj: { [key: string]: T }, key: string) {
-    const copy = { ...obj };
-
-    delete copy[key];
-
-    return copy;
-}

@@ -1,7 +1,7 @@
-/* eslint-disable no-prototype-builtins */
-import { idGenerator } from './identity';
-import { Types, without } from './types';
+import { idGenerator, Types } from "./../utils";
+import { without } from "./collections";
 
+/* eslint-disable no-prototype-builtins */
 type Mutator = {
     add: (item: string) => void;
 

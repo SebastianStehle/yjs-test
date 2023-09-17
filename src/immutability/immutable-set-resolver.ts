@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ImmutableSet } from "./immutable-set";
-import { ObjectDiff, ObjectTypeResolver, SourceObject } from "./sync-utils";
+import { ObjectDiff, ObjectTypeResolver, SourceObject } from "./../sync";
 
 export default class ImmutableSetResolver implements ObjectTypeResolver<ImmutableSet> {
     public readonly sourceType = 'Object';

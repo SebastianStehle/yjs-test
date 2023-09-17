@@ -2,7 +2,7 @@
 import * as Y from 'yjs';
 import { getTypeName, TypeProperties } from './identity';
 import { SyncOptions } from './sync-utils';
-import { Types } from './types';
+import { Types } from './../utils';
 
 const mapToTarget = new WeakMap();
 

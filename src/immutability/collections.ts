@@ -75,4 +75,12 @@ export function moveItems<T>(source: ReadonlyArray<T>, items: ReadonlyArray<T>, 
     return newItems;
 }
 
+export function without<T>(obj: { [key: string]: T }, key: string) {
+    const copy = { ...obj };
+
+    delete copy[key];
+
+    return copy;
+}
+
 type ItemToSort<T> = { isInItems: boolean; index: number; value: T };

@@ -3,7 +3,7 @@ import * as Y from 'yjs';
 import { getTypeName } from './identity';
 import { yjsToValue, getSource, getTarget, setTarget } from './sync-internals';
 import { ArrayDiff, ArrayTypeResolver, ObjectDiff, ObjectTypeResolver, SyncOptions } from './sync-utils';
-import { Types } from './types';
+import { Types } from './../utils';
 
 function syncValue(source: any, options: SyncOptions) {
     if (!isInvalid(source)) {

@@ -1,7 +1,7 @@
 /* eslint-disable no-prototype-builtins */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { idGenerator } from './identity';
-import { Types, without } from './types';
+import { idGenerator, Types } from './../utils';
+import { without } from './collections';
 
 type Mutator<T> = {
     remove: (key: string) => void;
